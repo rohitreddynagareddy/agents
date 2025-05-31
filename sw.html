@@ -1,0 +1,2590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Southwest Airlines Ops Platform</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* Custom style for active sidebar link */
+    #sidebar nav ul li a.active {
+      background-color: #2c5282; /* Tailwind's blue-800 */
+      font-weight: 600;
+      color: #fff;
+    }
+
+    /* Removed .speaker-overlay class as the element is removed */
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* AI Agent Chat Styles */
+    .chat-message {
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+      max-width: 75%;
+      word-wrap: break-word;
+    }
+    .user-message {
+      background-color: #2563EB; /* Tailwind blue-600 */
+      color: white;
+      margin-left: auto;
+      border-bottom-right-radius: 0;
+    }
+    .ai-message {
+      background-color: #E5E7EB; /* Tailwind gray-200 */
+      color: #1F2937; /* Tailwind gray-800 */
+      margin-right: auto;
+      border-bottom-left-radius: 0;
+    }
+    #chat-container {
+      height: calc(100vh - 350px); /* Adjusted height */
+      min-height: 300px; /* Minimum height */
+      overflow-y: auto;
+      padding: 1rem;
+      border: 1px solid #D1D5DB; /* Tailwind gray-300 */
+      border-radius: 0.5rem;
+      background-color: #F9FAFB; /* Tailwind gray-50 */
+    }
+    .loading-dots span {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #4B5563; /* Tailwind gray-600 */
+        border-radius: 50%;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1.0); }
+    }
+
+    /* Alerts Center Styles */
+    .alert-card {
+        transition: box-shadow 0.3s ease-in-out;
+    }
+    .alert-card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0,
+0, 0, 0.05); /* Tailwind shadow-lg */
+    }
+    .severity-high { border-left: 4px solid #EF4444; /* red-500 */ }
+    .severity-medium { border-left: 4px solid #F59E0B; /* amber-500 */ }
+    .severity-low { border-left: 4px solid #10B981; /* emerald-500 */ }
+    .severity-info { border-left: 4px solid #3B82F6; /* blue-500 */ }
+
+    /* Crew Hub Styles */
+    .crew-status-on-duty { background-color: #10B981; color: white; } /* emerald
+-500 */
+    .crew-status-off-duty { background-color: #6B7280; color: white; } /* gray-5
+00 */
+    .crew-status-standby { background-color: #F59E0B; color: white; } /* amber-5
+00 */
+    .crew-status-on-leave { background-color: #A78BFA; color: white; } /* violet
+-400 */
+
+    /* Modal Styles */
+    .modal {
+        transition: opacity 0.25s ease;
+    }
+    .modal-active {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+    body.modal-active { /* To prevent background scroll when modal is open */
+        overflow: hidden;
+    }
+
+
+    /* Station Ops Styles */
+    .gate-status-occupied { background-color: #FECACA; border-left-color: #EF444
+4; } /* red-200, red-500 */
+    .gate-status-available { background-color: #D1FAE5; border-left-color: #10B9
+81; } /* green-200, green-500 */
+    .gate-status-scheduled { background-color: #FEF3C7; border-left-color: #F59E
+0B; } /* amber-100, amber-500 */
+    .gate-status-oos { background-color: #E5E7EB; border-left-color: #6B7280; }
+/* gray-200, gray-500 */
+
+    /* Admin Config Styles */
+    .config-section {
+        background-color: #F9FAFB; /* gray-50 */
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06);
+        margin-bottom: 2rem;
+    }
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 40px; /* Reduced size */
+        height: 20px; /* Reduced size */
+    }
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 20px; /* Adjusted for size */
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px; /* Reduced size */
+        width: 14px; /* Reduced size */
+        left: 3px; /* Adjusted for size */
+        bottom: 3px; /* Adjusted for size */
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    input:checked + .slider {
+        background-color: #2563EB; /* blue-600 */
+    }
+    input:checked + .slider:before {
+        transform: translateX(20px); /* Adjusted for size */
+    }
+
+    /* Aircraft Tracker Styles */
+    .aircraft-status-in-flight { border-left-color: #3B82F6; /* blue-500 */ }
+    .aircraft-status-parked { border-left-color: #10B981; /* emerald-500 */ }
+    .aircraft-status-maintenance { border-left-color: #F59E0B; /* amber-500 */ }
+    .aircraft-status-taxiing { border-left-color: #A78BFA; /* violet-400 */ }
+    .aircraft-status-unknown { border-left-color: #6B7280; /* gray-500 */ }
+
+    /* Simulation Result Styles */
+    #simulation-results-container {
+        background-color: #F9FAFB; /* gray-50 */
+        border: 1px solid #E5E7EB; /* gray-200 */
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    /* Ops Brief Styles */
+    #ops-brief-output {
+        white-space: pre-wrap; /* Allows line breaks and preserves spaces */
+        font-family: 'Courier New', Courier, monospace;
+        background-color: #F3F4F6; /* gray-100 */
+        border: 1px solid #D1D5DB; /* gray-300 */
+        padding: 1rem;
+        border-radius: 0.25rem;
+        min-height: 200px;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    /* Recommendation Styles */
+    .recommendation-card {
+        border-left-width: 4px;
+        transition: box-shadow 0.3s ease-in-out;
+    }
+    .recommendation-card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,
+0.05);
+    }
+    .confidence-high { border-left-color: #10B981; } /* emerald-500 */
+    .confidence-medium { border-left-color: #F59E0B; } /* amber-500 */
+    .confidence-low { border-left-color: #EF4444; } /* red-500 */
+
+    /* Schedule Manager Styles */
+    .flight-status-on-time { color: #10B981; /* emerald-500 */ }
+    .flight-status-delayed { color: #F59E0B; /* amber-500 */ }
+    .flight-status-cancelled { color: #EF4444; /* red-500 */ }
+    .flight-status-boarding { color: #3B82F6; /* blue-500 */ }
+    .flight-status-in-flight { color: #8B5CF6; /* violet-500 */ }
+    .flight-status-arrived { color: #10B981; }
+    .flight-status-gate-change { color: #EC4899; /* pink-500 */}
+
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+  <div id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-blue-900 text-whi
+te transform -translate-x-full transition-transform duration-300 ease-in-out lg:
+translate-x-0">
+    <div class="p-4">
+      <div class="text-2xl font-bold mb-8 text-white">Ops Platform</div>
+
+      <nav>
+        <h2 class="text-sm text-gray-400 uppercase mb-2">Primary Operations</h2>
+        <ul class="space-y-2">
+          <li><a href="#home" data-tab="home" class="block px-4 py-2 rounded-md
+hover:bg-blue-700 active">Home</a></li>
+          <li><a href="#ai-agent" data-tab="ai-agent" class="block px-4 py-2 rou
+nded-md hover:bg-blue-700">AI Agent</a></li>
+          <li><a href="#alerts-center" data-tab="alerts-center" class="block px-
+4 py-2 rounded-md hover:bg-blue-700">Alerts Center</a></li>
+          <li><a href="#simulations" data-tab="simulations" class="block px-4 py
+-2 rounded-md hover:bg-blue-700">Simulations</a></li>
+          <li><a href="#recommendations" data-tab="recommendations" class="block
+ px-4 py-2 rounded-md hover:bg-blue-700">Recommendations</a></li>
+          <li><a href="#crew-hub" data-tab="crew-hub" class="block px-4 py-2 rou
+nded-md hover:bg-blue-700">Crew Hub</a></li>
+          <li><a href="#aircraft-tracker" data-tab="aircraft-tracker" class="blo
+ck px-4 py-2 rounded-md hover:bg-blue-700">Aircraft Tracker</a></li>
+          <li><a href="#station-ops" data-tab="station-ops" class="block px-4 py
+-2 rounded-md hover:bg-blue-700">Station Ops</a></li>
+        </ul>
+
+        <h2 class="text-sm text-gray-400 uppercase mt-6 mb-2">Secondary Tools</h
+2>
+        <ul class="space-y-2">
+          <li><a href="#schedule-manager" data-tab="schedule-manager" class="blo
+ck px-4 py-2 rounded-md hover:bg-blue-700">Schedule Manager</a></li>
+          <li><a href="#ops-brief" data-tab="ops-brief" class="block px-4 py-2 r
+ounded-md hover:bg-blue-700">Ops Brief Generator</a></li>
+          <li><a href="#admin-config" data-tab="admin-config" class="block px-4
+py-2 rounded-md hover:bg-blue-700">Admin & Config</a></li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+
+  <div id="main-content" class="transition-all duration-300 ease-in-out lg:ml-64
+">
+    <header class="bg-white shadow-sm p-4 flex items-center justify-between stic
+ky top-0 z-30">
+      <button id="menu-toggle" class="lg:hidden text-blue-900 p-2 rounded-md hov
+er:bg-gray-100">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" view
+Box="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      <div class="flex-1 mx-4 hidden sm:block"> <div class="bg-green-100 text-gr
+een-800 px-4 py-2 rounded-lg inline-block">
+          <span class="font-semibold">All Systems are 100% Connected</span>
+        </div>
+        <span class="ml-4 bg-blue-900 text-white px-3 py-1 rounded-full text-sm"
+>28 New AI Alerts & Recommendations</span>
+      </div>
+
+      <div class="flex-1 text-center sm:hidden">
+        <span class="text-lg font-semibold text-blue-900">Southwest+ Ops</span>
+      </div>
+
+      <div class="flex items-center space-x-2 sm:space-x-4">
+        <img src="https://placehold.co/32x32/E2E8F0/4A5568?text=User" alt="User"
+ class="w-8 h-8 rounded-full" onerror="this.src='https://placehold.co/32x32/E2E8
+F0/4A5568?text=U';" />
+        <button class="bg-blue-900 text-white px-3 py-1 sm:px-4 rounded-md text-
+sm sm:text-base hover:bg-blue-800">Invite</button>
+        <button class="bg-blue-900 text-white px-3 py-1 sm:px-4 rounded-md text-
+sm sm:text-base hover:bg-blue-800">Publish</button>
+      </div>
+    </header>
+
+    <main class="p-4 sm:p-6">
+      <div id="home" class="tab-content active">
+        <div class="mb-6">
+          <div class="relative h-56 sm:h-64 w-full bg-blue-50 rounded-lg overflo
+w-hidden shadow-lg">
+            <img
+              src="https://123stott.blob.core.windows.net/new/unnamed.jpg"
+              alt="Southwest Airlines aircraft"
+              class="object-cover w-full h-full"
+              onerror="this.src='https://placehold.co/1200x400/3B82F6/FFFFFF?tex
+t=Error+Loading+Image';"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-blac
+k/30 to-transparent flex flex-col justify-end">
+                </div>
+          </div>
+        </div>
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold mb-4 text-gray-800">Live Alerts</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="bg-white rounded-lg shadow-md p-4 relative hover:shadow-
+lg transition-shadow">
+              <div class="flex items-start">
+                <div class="mr-3 mt-1"> <svg xmlns="http://www.w3.org/2000/svg"
+class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentCol
+or">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-
+width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z
+" />
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <h3 class="font-semibold text-gray-800">Crew Shortage</h3>
+                  <p class="text-sm text-gray-600">DAL-PHX route at risk due to
+sick call</p>
+                  <div class="mt-2 flex justify-between text-xs text-gray-500">
+                    <span>8 Impacted Flights</span>
+                    <span>07:46 AM</span>
+                  </div>
+                </div>
+              </div>
+              <span class="absolute top-3 right-3 px-2 py-1 text-xs font-medium
+rounded-full bg-red-100 text-red-800">
+                High
+              </span>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-4 relative hover:shadow-
+lg transition-shadow">
+              <div class="flex items-start">
+                <div class="mr-3 mt-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gr
+ay-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke
+-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /> </svg>
+                </div>
+                <div class="flex-1">
+                  <h3 class="font-semibold text-gray-800">Aircraft Maintenance</
+h3>
+                  <p class="text-sm text-gray-600">N12345 requires unscheduled m
+aintenance</p>
+                  <div class="mt-2 flex justify-between text-xs text-gray-500">
+                    <span>5 Impacted Flights</span>
+                    <span>07:46 AM</span>
+                  </div>
+                </div>
+              </div>
+              <span class="absolute top-3 right-3 px-2 py-1 text-xs font-medium
+rounded-full bg-yellow-100 text-yellow-800">
+                Medium
+              </span>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-4 relative hover:shadow-
+lg transition-shadow">
+              <div class="flex items-start">
+                <div class="mr-3 mt-1">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-g
+ray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12
+8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /> </svg>
+                </div>
+                <div class="flex-1">
+                  <h3 class="font-semibold text-gray-800">Gate Congestion</h3>
+                  <p class="text-sm text-gray-600">MDW gates 10-14 experiencing
+high traffic</p>
+                  <div class="mt-2 flex justify-between text-xs text-gray-500">
+                    <span>7 Impacted Flights</span>
+                    <span>07:46 AM</span>
+                  </div>
+                </div>
+              </div>
+              <span class="absolute top-3 right-3 px-2 py-1 text-xs font-medium
+rounded-full bg-green-100 text-green-800">
+                Low
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Network Perform
+ance</h2>
+            <div class="h-56 sm:h-64">
+              <canvas id="performanceChart"></canvas>
+            </div>
+            <div class="mt-4 text-lg font-semibold text-center text-gray-700">
+              On-Time Performance: <span class="text-blue-600">87%</span>
+            </div>
+          </div>
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Today's Summary
+</h2>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Total Flights:</span>
+                <span class="font-semibold text-gray-800">1,250</span>
+              </div>
+              <hr/>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">On-Time:</span>
+                <span class="font-semibold text-green-600">1,089 (87%)</span>
+              </div>
+              <hr/>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Delays:</span>
+                <span class="font-semibold text-yellow-600">123 (9.8%)</span>
+              </div>
+              <hr/>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Cancellations:</span>
+                <span class="font-semibold text-red-600">38 (3.0%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="ai-agent" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <h2 class="text-2xl font-bold mb-4 text-gray-800">AI Operations Agent<
+/h2>
+          <p class="text-gray-600 mb-4">Ask me anything about current operations
+, potential disruptions, or for data-driven insights.</p>
+          <div id="chat-container" class="mb-4">
+            <div class="ai-message chat-message">Hello! How can I help you with
+Southwest Operations today?</div>
+          </div>
+          <div id="loading-indicator" class="hidden mb-2 items-center">
+            <div class="loading-dots mr-2">
+                <span></span><span></span><span></span>
+            </div>
+            <span class="text-sm text-gray-500">AI Agent is typing...</span>
+          </div>
+          <div class="flex items-center border-t border-gray-200 pt-4">
+            <input type="text" id="chat-input" class="flex-grow p-3 border borde
+r-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500" placeholder="
+Type your message...">
+            <button id="send-button" class="bg-blue-600 text-white p-3 rounded-r
+-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:
+ring-offset-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none
+" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-widt
+h="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+              </svg>
+            </button>
+          </div>
+          <div class="mt-4">
+            <p class="text-sm text-gray-500 mb-2">Or try these:</p>
+            <div class="flex flex-wrap gap-2">
+              <button class="suggested-prompt bg-gray-100 hover:bg-gray-200 text
+-gray-700 text-sm px-3 py-1 rounded-full">What's the status of flight SWA123?</b
+utton>
+              <button class="suggested-prompt bg-gray-100 hover:bg-gray-200 text
+-gray-700 text-sm px-3 py-1 rounded-full">Any weather alerts for DEN?</button>
+              <button class="suggested-prompt bg-gray-100 hover:bg-gray-200 text
+-gray-700 text-sm px-3 py-1 rounded-full">Summarize today's operational challeng
+es.</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="alerts-center" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <h2 class="text-2xl font-bold mb-6 text-gray-800">Operational Alerts C
+enter</h2>
+          <div class="mb-6 flex flex-col sm:flex-row gap-4">
+            <div class="flex-1">
+              <label for="filter-severity" class="block text-sm font-medium text
+-gray-700 mb-1">Filter by Severity:</label>
+              <select id="filter-severity" class="w-full p-2 border border-gray-
+300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                <option value="all">All Severities</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+                <option value="Info">Info</option>
+              </select>
+            </div>
+            <div class="flex-1">
+              <label for="filter-category" class="block text-sm font-medium text
+-gray-700 mb-1">Filter by Category:</label>
+              <select id="filter-category" class="w-full p-2 border border-gray-
+300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                <option value="all">All Categories</option>
+                <option value="Crew">Crew</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Weather">Weather</option>
+                <option value="ATC">ATC</option>
+                <option value="Station">Station Ops</option>
+                <option value="System">System</option>
+              </select>
+            </div>
+             <div class="flex-1">
+              <label for="sort-alerts" class="block text-sm font-medium text-gra
+y-700 mb-1">Sort by:</label>
+              <select id="sort-alerts" class="w-full p-2 border border-gray-300
+rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="severity">Severity (High-Low)</option>
+              </select>
+            </div>
+          </div>
+          <div id="alerts-list-container" class="space-y-4">
+            <p id="no-alerts-message" class="text-gray-500 hidden">No alerts mat
+ch the current filters.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="crew-hub" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Crew Hub Dashboard
+</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-
+6">
+                <div class="bg-blue-50 p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-blue-700">Total Crew</h3
+>
+                    <p id="total-crew-stat" class="text-2xl font-semibold text-b
+lue-900">0</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-green-700">On Duty</h3>
+                    <p id="on-duty-stat" class="text-2xl font-semibold text-gree
+n-900">0</p>
+                </div>
+                <div class="bg-yellow-50 p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-yellow-700">Standby</h3>
+                    <p id="standby-stat" class="text-2xl font-semibold text-yell
+ow-900">0</p>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-red-700">Needs Attention
+</h3>
+                    <p id="attention-stat" class="text-2xl font-semibold text-re
+d-900">0</p>
+                </div>
+            </div>
+            <div class="mb-6 flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-grow">
+                    <label for="crew-search" class="block text-sm font-medium te
+xt-gray-700 mb-1">Search Crew (Name/ID):</label>
+                    <input type="text" id="crew-search" placeholder="e.g., John
+Smith or CRW001" class="w-full p-2 border border-gray-300 rounded-md shadow-sm f
+ocus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="w-full md:w-auto">
+                    <label for="filter-crew-role" class="block text-sm font-medi
+um text-gray-700 mb-1">Role:</label>
+                    <select id="filter-crew-role" class="w-full p-2 border borde
+r-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Roles</option>
+                        <option value="Pilot">Pilot</option>
+                        <option value="Cabin Crew">Cabin Crew</option>
+                    </select>
+                </div>
+                <div class="w-full md:w-auto">
+                    <label for="filter-crew-status" class="block text-sm font-me
+dium text-gray-700 mb-1">Status:</label>
+                    <select id="filter-crew-status" class="w-full p-2 border bor
+der-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Statuses</option>
+                        <option value="On Duty">On Duty</option>
+                        <option value="Off Duty">Off Duty</option>
+                        <option value="Standby">Standby</option>
+                        <option value="On Leave">On Leave</option>
+                    </select>
+                </div>
+            </div>
+            <div id="crew-list-container" class="grid grid-cols-1 md:grid-cols-2
+ lg:grid-cols-3 gap-4">
+            </div>
+            <p id="no-crew-message" class="text-gray-500 mt-4 hidden">No crew me
+mbers match the current filters.</p>
+        </div>
+      </div>
+
+      <div id="crew-detail-modal" class="modal fixed inset-0 z-50 hidden items-c
+enter justify-center bg-black bg-opacity-50 p-4">
+          <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh]
+ overflow-y-auto p-6">
+              <div class="flex justify-between items-center mb-4">
+                  <h3 id="modal-crew-name" class="text-xl font-semibold text-gra
+y-800">Crew Member Details</h3>
+                  <button id="close-crew-modal" class="text-gray-500 hover:text-
+gray-700">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fi
+ll="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round"
+ stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+              </div>
+              <div id="modal-crew-details-content" class="space-y-3">
+              </div>
+          </div>
+      </div>
+
+      <div id="station-ops" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex flex-col sm:flex-row justify-between items-center m
+b-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 sm:mb-0">Statio
+n Operations Dashboard</h2>
+                <div>
+                    <label for="station-select" class="sr-only">Select Station</
+label>
+                    <select id="station-select" class="p-2 border border-gray-30
+0 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-
+8">
+                <div class="bg-gray-100 p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-gray-600">Station Status
+</h3>
+                    <p id="station-status-val" class="text-xl font-semibold text
+-gray-800">-</p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-gray-600">On-Time Depart
+ures (Today)</h3>
+                    <p id="station-otp-val" class="text-xl font-semibold text-gr
+ay-800">-</p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-gray-600">Avg. Turnaroun
+d Time</h3>
+                    <p id="station-turnaround-val" class="text-xl font-semibold
+text-gray-800">-</p>
+                </div>
+            </div>
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">Gate Status
+</h3>
+                <div id="gate-status-container" class="grid grid-cols-2 sm:grid-
+cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    </div>
+                <p id="no-gates-message" class="text-gray-500 mt-4 hidden">No ga
+te information available for this station.</p>
+            </div>
+            <div>
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">Current Fli
+ght Activity</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-600 mb-2">Arriv
+als</h4>
+                        <div id="station-arrivals-list" class="space-y-2 max-h-6
+0 overflow-y-auto bg-gray-50 p-3 rounded-md border">
+                            <p class="text-sm text-gray-400">No current arrivals
+.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-600 mb-2">Depar
+tures</h4>
+                        <div id="station-departures-list" class="space-y-2 max-h
+-60 overflow-y-auto bg-gray-50 p-3 rounded-md border">
+                            <p class="text-sm text-gray-400">No current departur
+es.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="aircraft-tracker" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Aircraft Fleet Tra
+cker</h2>
+
+            <div class="mb-6 flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-grow">
+                    <label for="aircraft-search" class="block text-sm font-mediu
+m text-gray-700 mb-1">Search Aircraft (Tail #):</label>
+                    <input type="text" id="aircraft-search" placeholder="e.g., N
+123SW" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-
+blue-500 focus:border-blue-500">
+                </div>
+                <div class="w-full md:w-auto">
+                    <label for="filter-aircraft-status" class="block text-sm fon
+t-medium text-gray-700 mb-1">Status:</label>
+                    <select id="filter-aircraft-status" class="w-full p-2 border
+ border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+>
+                        <option value="all">All Statuses</option>
+                        <option value="In Flight">In Flight</option>
+                        <option value="Parked">Parked</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Taxiing">Taxiing</option>
+                    </select>
+                </div>
+                <div class="w-full md:w-auto">
+                    <label for="filter-aircraft-model" class="block text-sm font
+-medium text-gray-700 mb-1">Model:</label>
+                    <select id="filter-aircraft-model" class="w-full p-2 border
+border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Models</option>
+                        </select>
+                </div>
+            </div>
+
+            <div id="aircraft-list-container" class="grid grid-cols-1 md:grid-co
+ls-2 lg:grid-cols-3 gap-4">
+                </div>
+            <p id="no-aircraft-message" class="text-gray-500 mt-4 hidden">No air
+craft match the current filters.</p>
+        </div>
+      </div>
+
+      <div id="aircraft-detail-modal" class="modal fixed inset-0 z-50 hidden ite
+ms-center justify-center bg-black bg-opacity-50 p-4">
+          <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh]
+ overflow-y-auto p-6">
+              <div class="flex justify-between items-center mb-4">
+                  <h3 id="modal-aircraft-tail" class="text-xl font-semibold text
+-gray-800">Aircraft Details</h3>
+                  <button id="close-aircraft-modal-btn" class="text-gray-500 hov
+er:text-gray-700">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fi
+ll="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round"
+ stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+              </div>
+              <div id="modal-aircraft-details-content" class="space-y-3 text-sm"
+>
+                  </div>
+          </div>
+      </div>
+
+
+      <div id="admin-config" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Admin & Configurat
+ion</h2>
+
+            <section class="config-section">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-gray-700">User Managem
+ent</h3>
+                    <button id="add-new-user-btn" class="bg-blue-500 hover:bg-bl
+ue-600 text-white px-4 py-2 rounded-md text-sm">Add New User</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-
+xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th scope="col" class="px-6 py-3 text-left text-
+xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th scope="col" class="px-6 py-3 text-left text-
+xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                                <th scope="col" class="px-6 py-3 text-left text-
+xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-list-table-body" class="bg-white divide-
+y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+                <p id="no-users-message" class="text-gray-500 mt-4 hidden">No us
+ers found.</p>
+            </section>
+
+            <section class="config-section">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">System Sett
+ings</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Enable Dark Mode</sp
+an>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="setting-dark-mode">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Receive Email Notifi
+cations</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="setting-email-notificatio
+ns" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div>
+                        <label for="setting-refresh-interval" class="block text-
+sm text-gray-600 mb-1">Data Refresh Interval:</label>
+                        <select id="setting-refresh-interval" class="w-full sm:w
+-1/2 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:b
+order-blue-500 text-sm">
+                            <option value="5">5 Minutes</option>
+                            <option value="15" selected>15 Minutes</option>
+                            <option value="30">30 Minutes</option>
+                            <option value="60">1 Hour</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-6 text-right">
+                    <button id="save-system-settings-btn" class="bg-green-500 ho
+ver:bg-green-600 text-white px-4 py-2 rounded-md text-sm">Save Settings</button>
+                </div>
+            </section>
+
+            <section class="config-section">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">API & Integ
+rations</h3>
+                <div id="integration-list-container" class="space-y-3">
+                    </div>
+                <p id="no-integrations-message" class="text-gray-500 mt-4 hidden
+">No integrations configured.</p>
+                 <div class="mt-6 text-right">
+                    <button id="add-new-integration-btn" class="bg-blue-500 hove
+r:bg-blue-600 text-white px-4 py-2 rounded-md text-sm">Add New Integration</butt
+on>
+                </div>
+            </section>
+            <div id="toast-notification" class="fixed bottom-5 right-5 bg-gray-8
+00 text-white px-4 py-2 rounded-md shadow-lg text-sm hidden transition-opacity d
+uration-300">
+                Settings saved!
+            </div>
+        </div>
+      </div>
+
+      <div id="integration-config-modal" class="modal fixed inset-0 z-[60] hidde
+n items-center justify-center bg-black bg-opacity-60 p-4">
+          <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh]
+ overflow-y-auto">
+              <div class="flex justify-between items-center p-4 border-b border-
+gray-200">
+                  <h3 id="modal-integration-title" class="text-lg font-semibold
+text-gray-800">Configure Integration</h3>
+                  <button id="close-integration-modal-btn" class="text-gray-400
+hover:text-gray-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fi
+ll="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round"
+ stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+              </div>
+              <form id="integration-modal-form">
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="modal-integration-id">
+                    <div>
+                        <label for="modal-integration-name-input" class="block t
+ext-sm font-medium text-gray-700 mb-1">Integration Name:</label>
+                        <input type="text" id="modal-integration-name-input" cla
+ss="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 f
+ocus:border-blue-500 text-sm" placeholder="e.g., New Weather Service" required>
+                    </div>
+                    <div>
+                        <label for="modal-integration-api-key" class="block text
+-sm font-medium text-gray-700 mb-1">API Key:</label>
+                        <input type="password" id="modal-integration-api-key" cl
+ass="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500
+focus:border-blue-500 text-sm" placeholder="Enter API Key">
+                    </div>
+                    <div>
+                        <label for="modal-integration-api-url" class="block text
+-sm font-medium text-gray-700 mb-1">API Endpoint URL:</label>
+                        <input type="url" id="modal-integration-api-url" class="
+w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus
+:border-blue-500 text-sm" placeholder="https://api.example.com/v1">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-700">Enable Integration:<
+/span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="modal-integration-enabled
+">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex j
+ustify-end space-x-3">
+                    <button id="cancel-integration-config-btn" type="button" cla
+ss="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm">Ca
+ncel</button>
+                    <button id="save-integration-config-btn" type="submit" class
+="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm">Save
+Configuration</button>
+                </div>
+              </form>
+          </div>
+      </div>
+
+
+      <div id="simulations" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Run Operational Sc
+enario Simulation</h2>
+            <form id="simulation-form" class="space-y-4">
+                <div>
+                    <label for="sim-scenario-name" class="block text-sm font-med
+ium text-gray-700 mb-1">Scenario Name:</label>
+                    <input type="text" id="sim-scenario-name" class="w-full p-2
+border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blu
+e-500" placeholder="e.g., DAL Snowstorm">
+                </div>
+                <div>
+                    <label for="sim-scenario-type" class="block text-sm font-med
+ium text-gray-700 mb-1">Scenario Type:</label>
+                    <select id="sim-scenario-type" class="w-full p-2 border bord
+er-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="Weather">Weather Event</option>
+                        <option value="Maintenance">Maintenance Crisis</option>
+                        <option value="ATC">ATC Congestion</option>
+                        <option value="Crew">Crew Shortage</option>
+                        <option value="Security">Security Incident</option>
+                        <option value="SystemOutage">System Outage</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="sim-affected-area" class="block text-sm font-med
+ium text-gray-700 mb-1">Affected Station/Area:</label>
+                    <input type="text" id="sim-affected-area" class="w-full p-2
+border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blu
+e-500" placeholder="e.g., DAL, PHX, Midwest Region">
+                </div>
+                <div>
+                    <label for="sim-severity" class="block text-sm font-medium t
+ext-gray-700 mb-1">Severity:</label>
+                    <select id="sim-severity" class="w-full p-2 border border-gr
+ay-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="Low">Low</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                    </select>
+                </div>
+                <div class="text-right">
+                    <button type="submit" id="run-simulation-btn" class="bg-blue
+-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md">Run Simulation</button>
+                </div>
+            </form>
+
+            <div id="simulation-results-container" class="mt-6 hidden">
+                <h3 class="text-xl font-semibold text-gray-700 mb-3">Simulation
+Results</h3>
+                <div id="simulation-output" class="space-y-3 text-sm text-gray-6
+00">
+                    </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="recommendations" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">AI-Driven Recommen
+dations</h2>
+
+            <div class="mb-6 flex flex-col sm:flex-row gap-4">
+                <div class="flex-1">
+                    <label for="filter-rec-category" class="block text-sm font-m
+edium text-gray-700 mb-1">Category:</label>
+                    <select id="filter-rec-category" class="w-full p-2 border bo
+rder-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Categories</option>
+                        <option value="Crew Scheduling">Crew Scheduling</option>
+                        <option value="Aircraft Assignment">Aircraft Assignment<
+/option>
+                        <option value="Network Optimization">Network Optimizatio
+n</option>
+                        <option value="Fuel Efficiency">Fuel Efficiency</option>
+                        <option value="Turnaround">Turnaround Time</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label for="filter-rec-confidence" class="block text-sm font
+-medium text-gray-700 mb-1">Confidence:</label>
+                    <select id="filter-rec-confidence" class="w-full p-2 border
+border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Confidence Levels</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label for="filter-rec-status" class="block text-sm font-med
+ium text-gray-700 mb-1">Status:</label>
+                    <select id="filter-rec-status" class="w-full p-2 border bord
+er-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Statuses</option>
+                        <option value="New">New</option>
+                        <option value="Reviewed">Reviewed</option>
+                        <option value="Implemented">Implemented</option>
+                        <option value="Dismissed">Dismissed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="recommendations-list-container" class="space-y-4">
+                </div>
+            <p id="no-recommendations-message" class="text-gray-500 mt-4 hidden"
+>No recommendations match the current filters.</p>
+        </div>
+      </div>
+
+      <div id="schedule-manager" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Flight Schedule Ma
+nager</h2>
+
+            <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-
+4 items-end">
+                <div>
+                    <label for="schedule-date" class="block text-sm font-medium
+text-gray-700 mb-1">Schedule Date:</label>
+                    <input type="date" id="schedule-date" class="w-full p-2 bord
+er border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-50
+0">
+                </div>
+                <div>
+                    <label for="filter-schedule-station" class="block text-sm fo
+nt-medium text-gray-700 mb-1">Station (Origin/Dest):</label>
+                    <select id="filter-schedule-station" class="w-full p-2 borde
+r border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500
+">
+                        <option value="all">All Stations</option>
+                        </select>
+                </div>
+                <div>
+                    <label for="filter-schedule-status" class="block text-sm fon
+t-medium text-gray-700 mb-1">Flight Status:</label>
+                    <select id="filter-schedule-status" class="w-full p-2 border
+ border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+>
+                        <option value="all">All Statuses</option>
+                        <option value="On Time">On Time</option>
+                        <option value="Delayed">Delayed</option>
+                        <option value="Cancelled">Cancelled</option>
+                        <option value="Boarding">Boarding</option>
+                        <option value="In Flight">In Flight</option>
+                        <option value="Arrived">Arrived</option>
+                        <option value="Gate Change">Gate Change</option>
+                    </select>
+                </div>
+                <div>
+                     <button id="refresh-schedule-btn" class="w-full bg-blue-500
+ hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm">Refresh Schedule</bu
+tton>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">Flight</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">Route</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">STD</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">ETD</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">STA</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">ETA</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">Aircraft</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">Gate</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium t
+ext-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="flight-schedule-tbody" class="bg-white divide-y d
+ivide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+            <p id="no-flights-message" class="text-gray-500 mt-4 hidden">No flig
+hts match the current criteria for the selected date.</p>
+        </div>
+      </div>
+
+      <div id="edit-flight-modal" class="modal fixed inset-0 z-[60] hidden items
+-center justify-center bg-black bg-opacity-60 p-4">
+          <div class="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[90vh]
+ overflow-y-auto">
+              <div class="flex justify-between items-center p-4 border-b border-
+gray-200">
+                  <h3 id="modal-flight-title" class="text-lg font-semibold text-
+gray-800">Edit Flight Details</h3>
+                  <button id="close-edit-flight-modal-btn" class="text-gray-400
+hover:text-gray-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fi
+ll="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round"
+ stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+              </div>
+              <form id="edit-flight-form">
+                  <input type="hidden" id="modal-flight-id">
+                  <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm"
+>
+                      <div>
+                          <label for="modal-flight-no" class="block font-medium
+text-gray-700">Flight No:</label>
+                          <input type="text" id="modal-flight-no" class="mt-1 w-
+full p-2 border border-gray-300 rounded-md bg-gray-100" readonly>
+                      </div>
+                      <div>
+                          <label for="modal-flight-route" class="block font-medi
+um text-gray-700">Route:</label>
+                          <input type="text" id="modal-flight-route" class="mt-1
+ w-full p-2 border border-gray-300 rounded-md bg-gray-100" readonly>
+                      </div>
+                      <div>
+                          <label for="modal-flight-etd" class="block font-medium
+ text-gray-700">ETD (Est. Departure):</label>
+                          <input type="datetime-local" id="modal-flight-etd" cla
+ss="mt-1 w-full p-2 border border-gray-300 rounded-md">
+                      </div>
+                      <div>
+                          <label for="modal-flight-eta" class="block font-medium
+ text-gray-700">ETA (Est. Arrival):</label>
+                          <input type="datetime-local" id="modal-flight-eta" cla
+ss="mt-1 w-full p-2 border border-gray-300 rounded-md">
+                      </div>
+                       <div>
+                          <label for="modal-flight-gate" class="block font-mediu
+m text-gray-700">Gate (Origin):</label>
+                          <input type="text" id="modal-flight-gate-origin" class
+="mt-1 w-full p-2 border border-gray-300 rounded-md" placeholder="e.g. A5">
+                      </div>
+                       <div>
+                          <label for="modal-flight-gate-dest" class="block font-
+medium text-gray-700">Gate (Destination):</label>
+                          <input type="text" id="modal-flight-gate-dest" class="
+mt-1 w-full p-2 border border-gray-300 rounded-md" placeholder="e.g. C12">
+                      </div>
+                      <div>
+                          <label for="modal-flight-status" class="block font-med
+ium text-gray-700">Status:</label>
+                          <select id="modal-flight-status" class="mt-1 w-full p-
+2 border border-gray-300 rounded-md">
+                              <option value="On Time">On Time</option>
+                              <option value="Delayed">Delayed</option>
+                              <option value="Cancelled">Cancelled</option>
+                              <option value="Boarding">Boarding</option>
+                              <option value="In Flight">In Flight</option>
+                              <option value="Arrived">Arrived</option>
+                              <option value="Gate Change">Gate Change</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label for="modal-flight-aircraft" class="block font-m
+edium text-gray-700">Aircraft:</label>
+                          <input type="text" id="modal-flight-aircraft" class="m
+t-1 w-full p-2 border border-gray-300 rounded-md" placeholder="e.g. N123SW">
+                      </div>
+                      <div class="sm:col-span-2">
+                          <label for="modal-flight-remarks" class="block font-me
+dium text-gray-700">Remarks:</label>
+                          <textarea id="modal-flight-remarks" rows="2" class="mt
+-1 w-full p-2 border border-gray-300 rounded-md"></textarea>
+                      </div>
+                  </div>
+                  <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex
+ justify-end space-x-3">
+                      <button id="cancel-edit-flight-btn" type="button" class="b
+g-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm">Cancel<
+/button>
+                      <button id="save-edit-flight-btn" type="submit" class="bg-
+green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm">Save Chang
+es</button>
+                  </div>
+              </form>
+          </div>
+      </div>
+
+
+      <div id="ops-brief" class="tab-content">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Operations Brief G
+enerator</h2>
+            <form id="ops-brief-form" class="space-y-4">
+                <div>
+                    <label for="brief-date" class="block text-sm font-medium tex
+t-gray-700 mb-1">Briefing Date:</label>
+                    <input type="date" id="brief-date" name="brief-date" class="
+w-full sm:w-1/2 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-
+500 focus:border-blue-500" required>
+                </div>
+                <fieldset>
+                    <legend class="text-sm font-medium text-gray-700 mb-2">Inclu
+de Sections:</legend>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2"
+>
+                        <div><label class="flex items-center"><input type="check
+box" id="include-network-perf" name="sections" value="network-performance" class
+="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2" checke
+d> Network Performance</label></div>
+                        <div><label class="flex items-center"><input type="check
+box" id="include-alerts-summary" name="sections" value="alerts-summary" class="h
+-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2" checked>
+Live Alerts Summary</label></div>
+                        <div><label class="flex items-center"><input type="check
+box" id="include-station-updates" name="sections" value="station-updates" class=
+"h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"> Key St
+ation Updates</label></div>
+                        <div><label class="flex items-center"><input type="check
+box" id="include-crew-status" name="sections" value="crew-status" class="h-4 w-4
+ text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"> Crew Availabil
+ity</label></div>
+                        <div><label class="flex items-center"><input type="check
+box" id="include-maintenance-notes" name="sections" value="maintenance-notes" cl
+ass="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"> Ma
+intenance Notes</label></div>
+                        <div><label class="flex items-center"><input type="check
+box" id="include-weather-outlook" name="sections" value="weather-outlook" class=
+"h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2" checked
+> Weather Outlook</label></div>
+                    </div>
+                </fieldset>
+                 <div>
+                    <label for="brief-custom-notes" class="block text-sm font-me
+dium text-gray-700 mb-1">Custom Notes (Optional):</label>
+                    <textarea id="brief-custom-notes" name="custom-notes" rows="
+3" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue
+-500 focus:border-blue-500" placeholder="Add any specific notes for this brief..
+."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="preview-brief-btn" class="bg-gray-
+500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm">Preview Brief</bu
+tton>
+                    <button type="submit" id="generate-brief-btn" class="bg-blue
+-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md text-sm">Generate & Downl
+oad Brief</button>
+                </div>
+            </form>
+
+            <div id="ops-brief-preview-container" class="mt-6 hidden">
+                <h3 class="text-xl font-semibold text-gray-700 mb-3">Brief Previ
+ew</h3>
+                <pre id="ops-brief-output" class="text-sm"></pre>
+            </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // --- Utility Functions ---
+    function debounce(func, delay) {
+        let timeoutId;
+        return function(...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                func.apply(this, args);
+            }, delay);
+        };
+    }
+
+    // --- General UI Script (Sidebar, Tabs) ---
+    const menuToggle = document.getElementById('menu-toggle');
+    const sidebar = document.getElementById('sidebar');
+    if (menuToggle && sidebar) {
+      menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('-translate-x-full');
+        sidebar.classList.toggle('translate-x-0');
+      });
+    }
+
+    const tabs = document.querySelectorAll('[data-tab]');
+    const contents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', function(e) {
+        e.preventDefault();
+        tabs.forEach(t => t.classList.remove('active'));
+        contents.forEach(content => content.classList.remove('active'));
+        this.classList.add('active');
+        const targetContentId = this.getAttribute('data-tab');
+        const targetContent = document.getElementById(targetContentId);
+        if (targetContent) {
+          targetContent.classList.add('active');
+          // Special handling for tabs that need to render content when activate
+d
+          if (targetContentId === 'alerts-center' && typeof renderAlerts === 'fu
+nction') {
+            if (document.getElementById('alerts-list-container') && !document.ge
+tElementById('alerts-list-container').hasChildNodes() && typeof mockAlerts !== '
+undefined' && mockAlerts.length > 0) {
+                setTimeout(renderAlerts,0);
+            }
+          } else if (targetContentId === 'crew-hub' && typeof renderCrewMembers
+=== 'function') {
+             if (document.getElementById('crew-list-container') && !document.get
+ElementById('crew-list-container').hasChildNodes() && typeof mockCrewMembers !==
+ 'undefined' && mockCrewMembers.length > 0) {
+                setTimeout(renderCrewMembers, 0);
+            }
+          } else if (targetContentId === 'station-ops' && typeof initializeStati
+onOps === 'function') {
+            if (document.getElementById('station-select') && document.getElement
+ById('station-select').options.length === 0) {
+                setTimeout(initializeStationOps, 0);
+            } else if (document.getElementById('station-select')) {
+                setTimeout(() => displayStationData(document.getElementById('sta
+tion-select').value), 0);
+            }
+          } else if (targetContentId === 'admin-config' && typeof initializeAdmi
+nConfig === 'function') {
+             setTimeout(initializeAdminConfig, 0);
+          } else if (targetContentId === 'aircraft-tracker' && typeof initialize
+AircraftTracker === 'function') {
+             setTimeout(initializeAircraftTracker, 0);
+          } else if (targetContentId === 'simulations' && typeof initializeSimul
+ations === 'function') {
+             setTimeout(initializeSimulations, 0);
+          } else if (targetContentId === 'ops-brief' && typeof initializeOpsBrie
+fGenerator === 'function') {
+             setTimeout(initializeOpsBriefGenerator, 0);
+          } else if (targetContentId === 'recommendations' && typeof initializeR
+ecommendations === 'function') {
+             setTimeout(initializeRecommendations, 0);
+          } else if (targetContentId === 'schedule-manager' && typeof initialize
+ScheduleManager === 'function') {
+             setTimeout(initializeScheduleManager, 0);
+          }
+        }
+      });
+    });
+
+    // --- AI Agent Chat Functionality ---
+    const chatContainer = document.getElementById('chat-container');
+    const chatInput = document.getElementById('chat-input');
+    const sendButton = document.getElementById('send-button');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const suggestedPromptButtons = document.querySelectorAll('.suggested-prompt'
+);
+    let chatHistory = [ { role: "model", parts: [{ text: "Hello! How can I help
+you with Southwest Operations today?" }] } ];
+    function addMessageToChat(text, sender) { if (!chatContainer) return; const
+div = document.createElement('div'); div.classList.add('chat-message', sender ==
+= 'user' ? 'user-message' : 'ai-message'); div.textContent = text; chatContainer
+.appendChild(div); chatContainer.scrollTop = chatContainer.scrollHeight; }
+    async function handleSendMessage() { if (!chatInput || !loadingIndicator) re
+turn; const text = chatInput.value.trim(); if (!text) return; addMessageToChat(t
+ext, 'user'); chatInput.value = ''; loadingIndicator.classList.remove('hidden');
+ loadingIndicator.classList.add('flex'); chatHistory.push({ role: "user", parts:
+ [{ text }] }); try { const payload = { contents: chatHistory }; const apiKey =
+""; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemi
+ni-2.0-flash:generateContent?key=${apiKey}`; const response = await fetch(apiUrl
+, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.
+stringify(payload) }); let aiText = "Sorry, error."; if (response.ok) { const re
+sult = await response.json(); if (result.candidates?.[0]?.content?.parts?.[0]) {
+ aiText = result.candidates[0].content.parts[0].text; } else if (result.promptFe
+edback?.blockReason) { aiText = `Blocked: ${result.promptFeedback.blockReason}.`
+; } } else { const err = await response.json(); aiText = `Error: ${err.error?.me
+ssage || 'API issue.'}`; } addMessageToChat(aiText, 'ai'); chatHistory.push({ ro
+le: "model", parts: [{ text: aiText }] }); } catch (e) { addMessageToChat('Netwo
+rk error.', 'ai'); } finally { if(loadingIndicator) {loadingIndicator.classList.
+add('hidden'); loadingIndicator.classList.remove('flex');} } }
+    if (sendButton && chatInput) { sendButton.addEventListener('click', handleSe
+ndMessage); chatInput.addEventListener('keypress', (e) => e.key === 'Enter' && h
+andleSendMessage()); }
+    suggestedPromptButtons.forEach(b => b.addEventListener('click', () => { if(c
+hatInput) {chatInput.value = b.textContent; chatInput.focus();} }));
+
+    // --- Alerts Center Functionality ---
+    const alertsListContainer = document.getElementById('alerts-list-container')
+;
+    const filterSeveritySelect = document.getElementById('filter-severity');
+    const filterCategorySelect = document.getElementById('filter-category');
+    const sortAlertsSelect = document.getElementById('sort-alerts');
+    const noAlertsMessage = document.getElementById('no-alerts-message');
+    const mockAlerts = [
+        { id: 1, title: "Critical Crew Shortage DAL", description: "Flight SWA12
+3 (DAL-PHX) at risk due to pilot sick call. Immediate action required to find re
+placement.", severity: "High", category: "Crew", timestamp: "2024-05-28T08:15:00
+Z", impactedFlights: 3, status: "New" },
+        { id: 2, title: "Maintenance Required N789SW", description: "Aircraft N7
+89SW reported hydraulic issue after landing at MDW. Requires unscheduled mainten
+ance.", severity: "Medium", category: "Maintenance", timestamp: "2024-05-28T07:3
+0:00Z", impactedFlights: 5, status: "New" },
+        { id: 3, title: "Weather Advisory: DEN Thunderstorms", description: "Thu
+nderstorms forecast for Denver (DEN) area from 14:00Z. Potential for ground dela
+ys and diversions.", severity: "Medium", category: "Weather", timestamp: "2024-0
+5-28T09:00:00Z", impactedFlights: 12, status: "New" },
+        { id: 4, title: "Gate Congestion LAX Terminal 1", description: "High tra
+ffic at LAX Terminal 1 gates B10-B15. Minor delays expected for arriving flights
+.", severity: "Low", category: "Station", timestamp: "2024-05-28T08:45:00Z", imp
+actedFlights: 7, status: "Acknowledged" },
+        { id: 5, title: "ATC Flow Control Program: EWR", description: "FAA has i
+mplemented a ground delay program for EWR due to volume. Expect departure delays
+.", severity: "Medium", category: "ATC", timestamp: "2024-05-27T16:00:00Z", impa
+ctedFlights: 25, status: "Ongoing" },
+        { id: 6, title: "System Outage: Crew Scheduling Module", description: "I
+ntermittent issues reported with the crew scheduling module. IT is investigating
+.", severity: "High", category: "System", timestamp: "2024-05-28T09:30:00Z", imp
+actedFlights: 0, status: "New" },
+        { id: 7, title: "Low Catering Supplies BNA", description: "Low stock of
+certain catering items at BNA station. Re-stocking underway, minor impact.", sev
+erity: "Low", category: "Station", timestamp: "2024-05-27T12:00:00Z", impactedFl
+ights: 2, status: "Resolved" },
+        { id: 8, title: "Informational: Runway Change PHX", description: "PHX ai
+rport has switched to runway 25R/7L operations due to wind shift.", severity: "I
+nfo", category: "ATC", timestamp: "2024-05-28T09:45:00Z", impactedFlights: 0, st
+atus: "New" }
+    ];
+    function getSeverityBadge(severity) { let bgColor, textColor; switch (severi
+ty.toLowerCase()) { case 'high': bgColor = 'bg-red-100'; textColor = 'text-red-8
+00'; break; case 'medium': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-8
+00'; break; case 'low': bgColor = 'bg-green-100'; textColor = 'text-green-800';
+break; case 'info': bgColor = 'bg-blue-100'; textColor = 'text-blue-800'; break;
+ default: bgColor = 'bg-gray-100'; textColor = 'text-gray-800'; } return `<span
+class="px-2 py-1 text-xs font-medium rounded-full ${bgColor} ${textColor}">${sev
+erity}</span>`; }
+    function getCategoryIcon(category) { switch (category.toLowerCase()) { case
+'crew': return '👤'; case 'maintenance': return '🔧'; case 'weather': return '☁️';
+ case 'atc': return '🗼'; case 'station': return '🏢'; case 'system': return '💻';
+default: return '🔔'; } }
+    function renderAlerts() {
+        if (!alertsListContainer || !filterSeveritySelect || !filterCategorySele
+ct || !sortAlertsSelect || !noAlertsMessage) { if(document.getElementById('alert
+s-center')?.classList.contains('active')) { console.error("Alerts Center UI elem
+ents not found."); } return; }
+        const selectedSeverity = filterSeveritySelect.value; const selectedCateg
+ory = filterCategorySelect.value; const sortBy = sortAlertsSelect.value; alertsL
+istContainer.innerHTML = '';
+        let filteredAlerts = mockAlerts.filter(alert => (selectedSeverity === 'a
+ll' || alert.severity === selectedSeverity) && (selectedCategory === 'all' || al
+ert.category === selectedCategory));
+        const severityOrder = { 'High': 1, 'Medium': 2, 'Low': 3, 'Info': 4 };
+        if (sortBy === 'newest') { filteredAlerts.sort((a, b) => new Date(b.time
+stamp) - new Date(a.timestamp)); } else if (sortBy === 'oldest') { filteredAlert
+s.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); } else if (sort
+By === 'severity') { filteredAlerts.sort((a, b) => severityOrder[a.severity] - s
+everityOrder[b.severity] || new Date(b.timestamp) - new Date(a.timestamp));}
+        let htmlString = '';
+        if (filteredAlerts.length === 0) {
+            noAlertsMessage.classList.remove('hidden');
+        } else {
+            noAlertsMessage.classList.add('hidden');
+            filteredAlerts.forEach(alert => {
+                const alertTime = new Date(alert.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+                htmlString += `
+                    <div class="bg-white rounded-lg shadow-md p-4 alert-card severity-${alert.severity.toLowerCase()}">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex items-center">
+                                <span class="text-xl mr-2">${getCategoryIcon(alert.category)}</span>
+                                <h3 class="text-lg font-semibold text-gray-800">${alert.title}</h3>
+                            </div>
+                            ${getSeverityBadge(alert.severity)}
+                        </div>
+                        <p class="text-sm text-gray-600 mb-3">${alert.description}</p>
+                        <div class="text-xs text-gray-500 flex justify-between items-center">
+                            <span>${alertTime}</span>
+                            ${alert.impactedFlights > 0 ? `<span>Impacting: ${alert.impactedFlights} flights</span>` : ''}
+                            <span class="px-2 py-0.5 text-xs font-medium rounded-full ${alert.status === 'New' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">
+                                ${alert.status}
+                            </span>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-gray-200 flex justify-end space-x-2">
+                            <button class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md">Acknowledge</button>
+                            <button class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md">View Details</button>
+                        </div>
+                    </div>`;
+            });
+        }
+        alertsListContainer.innerHTML = htmlString;
+        // Event listeners for buttons like "View Details" are expected to be re-added if they were previously added directly.
+        // However, the current structure for other functions (e.g. crew details) re-queries and adds listeners after render,
+        // which is compatible with this innerHTML change. For renderAlerts, if specific listeners were added to buttons
+        // inside the loop before, they would need to be re-added here or use event delegation.
+        // Given the example pattern, it's assumed that any necessary event listeners are handled outside this function or re-added after this call.
+    }
+    if (filterSeveritySelect) filterSeveritySelect.addEventListener('change', re
+nderAlerts);
+    if (filterCategorySelect) filterCategorySelect.addEventListener('change', re
+nderAlerts);
+    if (sortAlertsSelect) sortAlertsSelect.addEventListener('change', renderAler
+ts);
+
+    // --- Crew Hub Functionality ---
+    const crewListContainer = document.getElementById('crew-list-container');
+    const crewSearchInput = document.getElementById('crew-search');
+    const filterCrewRoleSelect = document.getElementById('filter-crew-role');
+    const filterCrewStatusSelect = document.getElementById('filter-crew-status')
+;
+    const noCrewMessage = document.getElementById('no-crew-message');
+    const crewDetailModal = document.getElementById('crew-detail-modal');
+    const modalCrewName = document.getElementById('modal-crew-name');
+    const modalCrewDetailsContent = document.getElementById('modal-crew-details-
+content');
+    const closeCrewModalButton = document.getElementById('close-crew-modal');
+
+    let mockCrewMembers = [
+        { id: "CRW001", name: "Capt. John Smith", role: "Pilot", rank: "Captain"
+, base: "DAL", status: "On Duty", currentAssignment: { flight: "SWA123", route:
+"DAL-PHX", departure: "2024-05-29T08:00:00Z", arrival: "2024-05-29T09:30:00Z" },
+ phone: "555-0101", email: "john.smith@example.com", alerts: [{ type: "info", me
+ssage: "Recurrent training due next month." }], hoursThisWeek: 35, nextFlight: "
+SWA456 (DAL-ATL) tomorrow at 10:00 AM" },
+        { id: "CRW002", name: "FO. Alice Brown", role: "Pilot", rank: "First Off
+icer", base: "DAL", status: "Standby", currentAssignment: null, phone: "555-0102
+", email: "alice.brown@example.com", alerts: [], hoursThisWeek: 10, nextFlight:
+"Awaiting assignment" },
+        { id: "CRW003", name: "FA. Emily White", role: "Cabin Crew", rank: "Lead
+ Flight Attendant", base: "MDW", status: "On Duty", currentAssignment: { flight:
+ "SWA789", route: "MDW-LAS", departure: "2024-05-29T10:30:00Z", arrival: "2024-0
+5-29T12:00:00Z" }, phone: "555-0103", email: "emily.white@example.com", alerts:
+[], hoursThisWeek: 28, nextFlight: "SWA101 (LAS-OAK) today at 01:30 PM" },
+        { id: "CRW004", name: "FA. Michael Green", role: "Cabin Crew", rank: "Fl
+ight Attendant", base: "PHX", status: "Off Duty", currentAssignment: null, phone
+: "555-0104", email: "michael.green@example.com", alerts: [{ type: "warning", me
+ssage: "Approaching monthly hour limit." }], hoursThisWeek: 42, nextFlight: "SWA
+222 (PHX-SAN) in 2 days" },
+        { id: "CRW005", name: "Capt. Sarah Jones", role: "Pilot", rank: "Captain
+", base: "ATL", status: "On Leave", currentAssignment: null, phone: "555-0105",
+email: "sarah.jones@example.com", alerts: [], hoursThisWeek: 0, nextFlight: "Ret
+urning in 5 days" },
+        { id: "CRW006", name: "FA. David Lee", role: "Cabin Crew", rank: "Flight
+ Attendant", base: "DAL", status: "Standby", currentAssignment: null, phone: "55
+5-0106", email: "david.lee@example.com", alerts: [], hoursThisWeek: 5, nextFligh
+t: "Awaiting assignment" },
+        { id: "CRW007", name: "FO. Kevin Harris", role: "Pilot", rank: "First Of
+ficer", base: "MDW", status: "On Duty", currentAssignment: { flight: "SWA333", r
+oute: "MDW-BNA", departure: "2024-05-29T11:00:00Z", arrival: "2024-05-29T12:15:0
+0Z"}, phone: "555-0107", email: "kevin.harris@example.com", alerts: [], hoursThi
+sWeek: 30, nextFlight: "SWA444 (BNA-MCO) today at 01:00 PM" },
+        { id: "CRW008", name: "Capt. Olivia Martinez", role: "Pilot", rank: "Cap
+tain", base: "HOU", status: "On Duty", currentAssignment: { flight: "SWA500", ro
+ute: "HOU-MCO", departure: "2024-05-29T13:00:00Z", arrival: "2024-05-29T16:30:00
+Z" }, phone: "555-0108", email: "olivia.martinez@example.com", alerts: [], hours
+ThisWeek: 25, nextFlight: "SWA501 (MCO-BWI) tomorrow at 09:00 AM" },
+        { id: "CRW009", name: "FA. James Wilson", role: "Cabin Crew", rank: "Fli
+ght Attendant", base: "LAS", status: "Standby", currentAssignment: null, phone:
+"555-0109", email: "james.wilson@example.com", alerts: [], hoursThisWeek: 8, nex
+tFlight: "Awaiting assignment" },
+        { id: "CRW010", name: "FO. Chloe Garcia", role: "Pilot", rank: "First Of
+ficer", base: "DEN", status: "Off Duty", currentAssignment: null, phone: "555-01
+10", email: "chloe.garcia@example.com", alerts: [], hoursThisWeek: 38, nextFligh
+t: "SWA600 (DEN-DAL) in 3 days" },
+        { id: "CRW011", name: "FA. Ethan Rodriguez", role: "Cabin Crew", rank: "
+Flight Attendant", base: "BWI", status: "On Duty", currentAssignment: { flight:
+"SWA700", route: "BWI-FLL", departure: "2024-05-29T14:00:00Z", arrival: "2024-05
+-29T16:45:00Z" }, phone: "555-0111", email: "ethan.rodriguez@example.com", alert
+s: [], hoursThisWeek: 22, nextFlight: "SWA701 (FLL-MDW) today at 05:30 PM" },
+        { id: "CRW012", name: "Capt. Ava Nguyen", role: "Pilot", rank: "Captain"
+, base: "OAK", status: "On Leave", currentAssignment: null, phone: "555-0112", e
+mail: "ava.nguyen@example.com", alerts: [], hoursThisWeek: 0, nextFlight: "Retur
+ning in 10 days" },
+        { id: "CRW013", name: "FA. Noah Kim", role: "Cabin Crew", rank: "Lead Fl
+ight Attendant", base: "MCO", status: "On Duty", currentAssignment: { flight: "S
+WA800", route: "MCO-ATL", departure: "2024-05-29T15:00:00Z", arrival: "2024-05-2
+9T16:15:00Z" }, phone: "555-0113", email: "noah.kim@example.com", alerts: [], ho
+ursThisWeek: 32, nextFlight: "SWA801 (ATL-DAL) tomorrow at 11:00 AM" },
+        { id: "CRW014", name: "FO. Isabella Davis", role: "Pilot", rank: "First
+Officer", base: "FLL", status: "Standby", currentAssignment: null, phone: "555-0
+114", email: "isabella.davis@example.com", alerts: [{ type: "info", message: "Ch
+eck-in required for standby." }], hoursThisWeek: 12, nextFlight: "Awaiting assig
+nment" },
+        { id: "CRW015", name: "FA. Liam Chen", role: "Cabin Crew", rank: "Flight
+ Attendant", base: "SAN", status: "Off Duty", currentAssignment: null, phone: "5
+55-0115", email: "liam.chen@example.com", alerts: [], hoursThisWeek: 40, nextFli
+ght: "SWA900 (SAN-PHX) in 1 day" },
+        { id: "CRW016", name: "Capt. Mia Patel", role: "Pilot", rank: "Captain",
+ base: "BNA", status: "On Duty", currentAssignment: { flight: "SWA950", route: "
+BNA-STL", departure: "2024-05-29T16:00:00Z", arrival: "2024-05-29T17:00:00Z" },
+phone: "555-0116", email: "mia.patel@example.com", alerts: [], hoursThisWeek: 18
+, nextFlight: "SWA951 (STL-MDW) today at 06:00 PM" },
+        { id: "CRW017", name: "FA. Lucas Jackson", role: "Cabin Crew", rank: "Fl
+ight Attendant", base: "STL", status: "Standby", currentAssignment: null, phone:
+ "555-0117", email: "lucas.jackson@example.com", alerts: [], hoursThisWeek: 3, n
+extFlight: "Awaiting assignment" },
+    ];
+
+    function getStatusClass(status) { switch (status.toLowerCase().replace(/\s+/
+g, '-')) { case 'on-duty': return 'crew-status-on-duty'; case 'off-duty': return
+ 'crew-status-off-duty'; case 'standby': return 'crew-status-standby'; case 'on-
+leave': return 'crew-status-on-leave'; default: return 'bg-gray-200 text-gray-80
+0'; } }
+    function updateCrewStats() { const total = document.getElementById('total-cr
+ew-stat'), onDuty = document.getElementById('on-duty-stat'), standby = document.
+getElementById('standby-stat'), attention = document.getElementById('attention-s
+tat'); if(total && onDuty && standby && attention) { total.textContent = mockCre
+wMembers.length; onDuty.textContent = mockCrewMembers.filter(c=>c.status==="On D
+uty").length; standby.textContent = mockCrewMembers.filter(c=>c.status==="Standb
+y").length; attention.textContent = mockCrewMembers.filter(c=>c.alerts?.length>0
+).length; } }
+    function renderCrewMembers() {
+        if (!crewListContainer || !crewSearchInput || !filterCrewRoleSelect || !
+filterCrewStatusSelect || !noCrewMessage) { if(document.getElementById('crew-hub
+')?.classList.contains('active')) { console.error("Crew Hub UI elements not foun
+d."); } return; }
+        const searchTerm = crewSearchInput.value.toLowerCase(); const selectedRo
+le = filterCrewRoleSelect.value; const selectedStatus = filterCrewStatusSelect.v
+alue; crewListContainer.innerHTML = '';
+        let filteredCrew = mockCrewMembers.filter(crew => (crew.name.toLowerCase
+().includes(searchTerm) || crew.id.toLowerCase().includes(searchTerm)) && (selec
+tedRole === 'all' || crew.role === selectedRole) && (selectedStatus === 'all' ||
+ crew.status === selectedStatus));
+
+        let htmlString = '';
+        if (filteredCrew.length === 0) {
+            noCrewMessage.classList.remove('hidden');
+        } else {
+            noCrewMessage.classList.add('hidden');
+            filteredCrew.forEach(crew => {
+                let assignmentInfo = 'N/A';
+                if (crew.currentAssignment) {
+                    assignmentInfo = `${crew.currentAssignment.flight} (${crew.currentAssignment.route})`;
+                }
+                htmlString += `
+                    <div class="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-md font-semibold text-gray-800">${crew.name} <span class="text-xs text-gray-500">(${crew.id})</span></h3>
+                            <span class="text-xs px-2 py-1 rounded-full ${getStatusClass(crew.status)}">${crew.status}</span>
+                        </div>
+                        <p class="text-sm text-gray-600">${crew.role} - ${crew.rank}</p>
+                        <p class="text-sm text-gray-500">Base: ${crew.base}</p>
+                        <p class="text-sm text-gray-500 truncate" title="Assignment: ${assignmentInfo}">Assignment: ${assignmentInfo}</p>
+                        <div class="mt-3 pt-3 border-t border-gray-200 flex justify-end">
+                            <button data-crew-id="${crew.id}" class="view-crew-details-btn text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md">View Details</button>
+                        </div>
+                    </div>`;
+            });
+        }
+        crewListContainer.innerHTML = htmlString;
+        updateCrewStats();
+        document.querySelectorAll('.view-crew-details-btn').forEach(button => button.addEventListener('click', () => showCrewDetailModal(button.dataset.crewId)));
+    }
+    function showCrewDetailModal(crewId) {
+        const crew = mockCrewMembers.find(c => c.id === crewId); if (!crew || !c
+rewDetailModal || !modalCrewName || !modalCrewDetailsContent) return; modalCrewN
+ame.textContent = `${crew.name} (${crew.id})`; let assignmentHTML = 'Not current
+ly assigned.'; if (crew.currentAssignment) { const depTime = new Date(crew.curre
+ntAssignment.departure).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit
+'}); const arrTime = new Date(crew.currentAssignment.arrival).toLocaleTimeString
+([], {hour: '2-digit', minute:'2-digit'}); assignmentHTML = `<p><span class="fon
+t-semibold">Flight:</span> ${crew.currentAssignment.flight}</p><p><span class="f
+ont-semibold">Route:</span> ${crew.currentAssignment.route}</p><p><span class="f
+ont-semibold">Departure:</span> ${new Date(crew.currentAssignment.departure).toL
+ocaleDateString()} ${depTime}</p><p><span class="font-semibold">Arrival:</span>
+${new Date(crew.currentAssignment.arrival).toLocaleDateString()} ${arrTime}</p>`
+; } let alertsHTML = 'No alerts.'; if (crew.alerts && crew.alerts.length > 0) {
+alertsHTML = '<ul>'; crew.alerts.forEach(alert => { alertsHTML += `<li class="te
+xt-sm ${alert.type === 'warning' ? 'text-yellow-600' : 'text-blue-600'}">- ${ale
+rt.message}</li>`; }); alertsHTML += '</ul>'; } modalCrewDetailsContent.innerHTM
+L = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm"><p><sp
+an class="font-semibold">Role:</span> ${crew.role} - ${crew.rank}</p><p><span cl
+ass="font-semibold">Status:</span> <span class="px-2 py-0.5 rounded-full text-xs
+ ${getStatusClass(crew.status)}">${crew.status}</span></p><p><span class="font-s
+emibold">Base:</span> ${crew.base}</p><p><span class="font-semibold">Phone:</spa
+n> ${crew.phone}</p><p><span class="font-semibold">Email:</span> ${crew.email}</
+p><p><span class="font-semibold">Hours this Week:</span> ${crew.hoursThisWeek}</
+p></div><div class="mt-3"><h4 class="font-semibold text-sm mb-1">Current Assignm
+ent:</h4><div class="text-sm text-gray-600 pl-2">${assignmentHTML}</div></div><d
+iv class="mt-3"><h4 class="font-semibold text-sm mb-1">Next Flight / Availabilit
+y:</h4><p class="text-sm text-gray-600 pl-2">${crew.nextFlight || 'N/A'}</p></di
+v><div class="mt-3"><h4 class="font-semibold text-sm mb-1">Alerts:</h4><div clas
+s="text-sm text-gray-600 pl-2">${alertsHTML}</div></div>`;
+        crewDetailModal.classList.remove('hidden'); crewDetailModal.classList.ad
+d('flex', 'modal-active'); document.body.classList.add('modal-active');
+    }
+    function hideCrewDetailModal() { if (!crewDetailModal) return; crewDetailMod
+al.classList.add('hidden'); crewDetailModal.classList.remove('flex', 'modal-acti
+ve'); document.body.classList.remove('modal-active'); }
+    if (crewSearchInput) crewSearchInput.addEventListener('input', debounce(renderCrewMembers, 400));
+    if (filterCrewRoleSelect) filterCrewRoleSelect.addEventListener('change', re
+nderCrewMembers);
+    if (filterCrewStatusSelect) filterCrewStatusSelect.addEventListener('change'
+, renderCrewMembers);
+    if (closeCrewModalButton) closeCrewModalButton.addEventListener('click', hid
+eCrewDetailModal);
+    window.addEventListener('keydown', (event) => { if (event.key === 'Escape' &
+& crewDetailModal && !crewDetailModal.classList.contains('hidden')) { hideCrewDe
+tailModal(); } });
+    if (crewDetailModal) { crewDetailModal.addEventListener('click', (event) =>
+{ if (event.target === crewDetailModal) { hideCrewDetailModal(); } }); }
+
+    // --- Station Ops Functionality ---
+    const stationSelect = document.getElementById('station-select');
+    const stationStatusVal = document.getElementById('station-status-val');
+    const stationOtpVal = document.getElementById('station-otp-val');
+    const stationTurnaroundVal = document.getElementById('station-turnaround-val
+');
+    const gateStatusContainer = document.getElementById('gate-status-container')
+;
+    const noGatesMessage = document.getElementById('no-gates-message');
+    const stationArrivalsList = document.getElementById('station-arrivals-list')
+;
+    const stationDeparturesList = document.getElementById('station-departures-li
+st');
+    const mockStationData = { "DAL": { name: "Dallas Love Field", status: "Norma
+l", otpToday: "92%", avgTurnaroundTime: "38 min", gates: [ { id: "A1", status: "
+Occupied", flight: "SWA123", type: "Arrival", time: "10:15 AM" }, { id: "A2", st
+atus: "Available" }, { id: "A3", status: "Scheduled", flight: "SWA456", type: "D
+eparture", time: "11:00 AM" }, { id: "B2", status: "OOS" } ], arrivals: [ { flig
+ht: "SWA123", origin: "HOU", sta: "10:15 AM", ata: "10:12 AM", gate: "A1", statu
+s: "Arrived" }, { flight: "SWA300", origin: "PHX", sta: "11:05 AM", status: "En
+Route" } ], departures: [ { flight: "SWA200", destination: "ATL", std: "10:45 AM
+", gate: "A2", status: "Boarding" } ] }, "MDW": { name: "Chicago Midway", status
+: "Busy", otpToday: "85%", avgTurnaroundTime: "42 min", gates: [ { id: "C1", sta
+tus: "Occupied", flight: "SWA501", type: "Departure", time: "10:50 AM" }, { id:
+"C2", status: "Scheduled", flight: "SWA502", type: "Arrival", time: "11:15 AM" }
+ ], arrivals: [ { flight: "SWA601", origin: "DAL", sta: "10:20 AM", ata: "10:25
+AM", gate: "C1", status: "Delayed" } ], departures: [ { flight: "SWA501", destin
+ation: "DEN", std: "10:50 AM", gate: "C1", status: "Scheduled" } ] }, "PHX": { n
+ame: "Phoenix Sky Harbor", status: "Weather Alert", otpToday: "78%", avgTurnarou
+ndTime: "45 min", gates: [ {id: "D1", status: "Available"} ], arrivals: [], depa
+rtures: [] } };
+    function getGateStatusClass(status) { switch (status?.toLowerCase()) { case
+'occupied': return 'gate-status-occupied'; case 'available': return 'gate-status
+-available'; case 'scheduled': return 'gate-status-scheduled'; case 'oos': retur
+n 'gate-status-oos'; default: return 'bg-gray-200 border-left-gray-500'; } }
+    function displayStationData(stationCode) {
+        if (!stationCode || !mockStationData[stationCode] || !stationStatusVal || !stationOtpVal || !stationTurnaroundVal || !gateStatusContainer || !noGatesMessage || !stationArrivalsList || !stationDeparturesList) {
+            console.warn(`Missing elements or data for station: ${stationCode}`);
+            return;
+        }
+        const data = mockStationData[stationCode];
+        stationStatusVal.textContent = data.status;
+        stationOtpVal.textContent = data.otpToday;
+        stationTurnaroundVal.textContent = data.avgTurnaroundTime;
+
+        let gateHtmlString = '';
+        if (data.gates && data.gates.length > 0) {
+            noGatesMessage.classList.add('hidden');
+            data.gates.forEach(gate => {
+                gateHtmlString += `
+                    <div class="p-3 rounded-md border-l-4 shadow-sm ${getGateStatusClass(gate.status)}">
+                        <div class="font-semibold text-gray-700 text-sm">Gate ${gate.id}</div>
+                        <div class="text-xs text-gray-600">${gate.status}</div>
+                        ${gate.flight ? `<div class="text-xs text-gray-500 mt-1">${gate.type || ''}: ${gate.flight} ${gate.time ? '@ ' + gate.time : ''}</div>` : ''}
+                    </div>`;
+            });
+        } else {
+            noGatesMessage.classList.remove('hidden');
+        }
+        gateStatusContainer.innerHTML = gateHtmlString;
+
+        let arrivalsHtmlString = '';
+        if (data.arrivals && data.arrivals.length > 0) {
+            data.arrivals.forEach(arr => {
+                arrivalsHtmlString += `
+                    <div class="p-2 bg-white rounded shadow-sm text-xs">
+                        <div class="font-semibold">${arr.flight} from ${arr.origin} - ${arr.status}</div>
+                        <div>STA: ${arr.sta} | ATA: ${arr.ata || '-'} | Gate: ${arr.gate || 'TBD'}</div>
+                    </div>`;
+            });
+            stationArrivalsList.innerHTML = arrivalsHtmlString;
+        } else {
+            stationArrivalsList.innerHTML = '<p class="text-sm text-gray-400">No current arrivals.</p>';
+        }
+
+        let departuresHtmlString = '';
+        if (data.departures && data.departures.length > 0) {
+            data.departures.forEach(dep => {
+                departuresHtmlString += `
+                    <div class="p-2 bg-white rounded shadow-sm text-xs">
+                        <div class="font-semibold">${dep.flight} to ${dep.destination} - ${dep.status}</div>
+                        <div>STD: ${dep.std} | ATD: ${dep.atd || '-'} | Gate: ${dep.gate || 'TBD'}</div>
+                    </div>`;
+            });
+            stationDeparturesList.innerHTML = departuresHtmlString;
+        } else {
+            stationDeparturesList.innerHTML = '<p class="text-sm text-gray-400">No current departures.</p>';
+        }
+    }
+    function initializeStationOps() { if (!stationSelect) { if(document.getEleme
+ntById('station-ops')?.classList.contains('active')) { console.error("Station se
+lect dropdown not found."); } return; } Object.keys(mockStationData).forEach(sta
+tionCode => { const option = document.createElement('option'); option.value = st
+ationCode; option.textContent = `${stationCode} - ${mockStationData[stationCode]
+.name}`; stationSelect.appendChild(option); }); if (stationSelect.options.length
+ > 0) { if(!stationSelect.value) { stationSelect.value = stationSelect.options[0
+].value;} displayStationData(stationSelect.value); } else { displayStationData(n
+ull); } }
+    if (stationSelect) stationSelect.addEventListener('change', e => displayStat
+ionData(e.target.value));
+
+    // --- Admin & Configuration Functionality ---
+    const userListTableBody = document.getElementById('user-list-table-body');
+    const noUsersMessage = document.getElementById('no-users-message');
+    const addNewUserBtn = document.getElementById('add-new-user-btn');
+    const settingDarkModeToggle = document.getElementById('setting-dark-mode');
+    const settingEmailNotificationsToggle = document.getElementById('setting-ema
+il-notifications');
+    const settingRefreshIntervalSelect = document.getElementById('setting-refres
+h-interval');
+    const saveSystemSettingsBtn = document.getElementById('save-system-settings-
+btn');
+    const toastNotification = document.getElementById('toast-notification');
+    const integrationListContainer = document.getElementById('integration-list-c
+ontainer');
+    const noIntegrationsMessage = document.getElementById('no-integrations-messa
+ge');
+    const addNewIntegrationBtn = document.getElementById('add-new-integration-bt
+n');
+    const integrationConfigModal = document.getElementById('integration-config-m
+odal');
+    const modalIntegrationTitle = document.getElementById('modal-integration-tit
+le');
+    const modalIntegrationIdInput = document.getElementById('modal-integration-i
+d');
+    const modalIntegrationNameInput = document.getElementById('modal-integration
+-name-input');
+    const modalIntegrationApiKeyInput = document.getElementById('modal-integrati
+on-api-key');
+    const modalIntegrationApiUrlInput = document.getElementById('modal-integrati
+on-api-url');
+    const modalIntegrationEnabledToggle = document.getElementById('modal-integra
+tion-enabled');
+    const closeIntegrationModalBtn = document.getElementById('close-integration-
+modal-btn');
+    const cancelIntegrationConfigBtn = document.getElementById('cancel-integrati
+on-config-btn');
+    const saveIntegrationConfigBtn = document.getElementById('save-integration-c
+onfig-btn');
+    const integrationModalForm = document.getElementById('integration-modal-form
+');
+    const mockAdminUsers = [ { id: "USR001", name: "Admin User", email: "admin@s
+outhwestplus.com", role: "Administrator" }, { id: "USR002", name: "Operations Le
+ad", email: "opslead@southwestplus.com", role: "Manager" }, { id: "USR003", name
+: "Data Analyst", email: "analyst@southwestplus.com", role: "Analyst" }, ];
+    let mockSystemSettings = { darkMode: false, emailNotifications: true, refres
+hInterval: "15" };
+    let mockIntegrations = [ { id: "INT001", name: "Weather API (OpenWeather)",
+status: "Connected", lastSync: "2024-05-29T10:00:00Z", apiKey: "dummykey123", ap
+iUrl: "https://api.openweathermap.org/data/2.5/", enabled: true }, { id: "INT002
+", name: "FlightStats Data Feed", status: "Disconnected", lastSync: "2024-05-28T
+15:30:00Z", apiKey: "", apiUrl: "", enabled: false }, { id: "INT003", name: "FAA
+ NOTAM Service", status: "Connected", lastSync: "2024-05-29T10:15:00Z", apiKey:
+"anotherkey789", apiUrl: "https://v4p4sz5ijk.execute-api.us-east-1.amazonaws.com
+/anp-notam-prod", enabled: true }, ];
+    function renderUsers() {
+        if (!userListTableBody || !noUsersMessage) return;
+        let htmlString = '';
+        if (mockAdminUsers.length === 0) {
+            noUsersMessage.classList.remove('hidden');
+        } else {
+            noUsersMessage.classList.add('hidden');
+            mockAdminUsers.forEach(user => {
+                htmlString += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${user.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.email}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.role}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            <button class="text-indigo-600 hover:text-indigo-900">Edit</button>
+                            <button class="text-red-600 hover:text-red-900">Remove</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+        userListTableBody.innerHTML = htmlString;
+        // Add event listeners for edit/remove buttons if needed, e.g.:
+        // userListTableBody.querySelectorAll('.edit-user-btn').forEach(btn => btn.addEventListener('click', handleEditUser));
+        // userListTableBody.querySelectorAll('.remove-user-btn').forEach(btn => btn.addEventListener('click', handleRemoveUser));
+    }
+    function loadSystemSettings() { if (settingDarkModeToggle) settingDarkModeTo
+ggle.checked = mockSystemSettings.darkMode; if (settingEmailNotificationsToggle)
+ settingEmailNotificationsToggle.checked = mockSystemSettings.emailNotifications
+; if (settingRefreshIntervalSelect) settingRefreshIntervalSelect.value = mockSys
+temSettings.refreshInterval; }
+    function saveSystemSettings() { if (settingDarkModeToggle) mockSystemSetting
+s.darkMode = settingDarkModeToggle.checked; if (settingEmailNotificationsToggle)
+ mockSystemSettings.emailNotifications = settingEmailNotificationsToggle.checked
+; if (settingRefreshIntervalSelect) mockSystemSettings.refreshInterval = setting
+RefreshIntervalSelect.value; showToast("System settings saved!"); console.log("S
+ystem Settings Saved:", mockSystemSettings); }
+    function renderIntegrations() {
+        if (!integrationListContainer || !noIntegrationsMessage) return;
+        let htmlString = '';
+        if (mockIntegrations.length === 0) {
+            noIntegrationsMessage.classList.remove('hidden');
+            integrationListContainer.innerHTML = ''; // Clear if empty
+        } else {
+            noIntegrationsMessage.classList.add('hidden');
+            mockIntegrations.forEach(integration => {
+                const statusColor = integration.enabled && integration.status === "Connected" ? "text-green-500" : "text-red-500";
+                const statusText = integration.enabled ? integration.status : "Disabled";
+                const lastSyncTime = new Date(integration.lastSync).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+                htmlString += `
+                    <div class="flex items-center justify-between p-3 bg-white rounded-md shadow-sm border border-gray-200">
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">${integration.name}</p>
+                            <p class="text-xs text-gray-500">Last Sync: ${lastSyncTime}</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xs font-semibold ${statusColor}">${statusText}</span>
+                            <button data-integration-id="${integration.id}" class="configure-integration-btn text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md">Configure</button>
+                        </div>
+                    </div>`;
+            });
+            integrationListContainer.innerHTML = htmlString;
+        }
+        document.querySelectorAll('.configure-integration-btn').forEach(button => button.addEventListener('click', () => showIntegrationConfigModal(button.dataset.integrationId)));
+    }
+    function showIntegrationConfigModal(integrationId = null) { if (!integration
+ConfigModal || !integrationModalForm) return; integrationModalForm.reset(); moda
+lIntegrationIdInput.value = integrationId || ''; if (integrationId) { const inte
+gration = mockIntegrations.find(int => int.id === integrationId); if (!integrati
+on) return; if(modalIntegrationTitle) modalIntegrationTitle.textContent = `Confi
+gure: ${integration.name}`; if(modalIntegrationNameInput) modalIntegrationNameIn
+put.value = integration.name; if(modalIntegrationApiKeyInput) modalIntegrationAp
+iKeyInput.value = integration.apiKey || ''; if(modalIntegrationApiUrlInput) moda
+lIntegrationApiUrlInput.value = integration.apiUrl || ''; if(modalIntegrationEna
+bledToggle) modalIntegrationEnabledToggle.checked = integration.enabled; } else
+{ if(modalIntegrationTitle) modalIntegrationTitle.textContent = 'Add New Integra
+tion'; if(modalIntegrationNameInput) modalIntegrationNameInput.value = ''; if(mo
+dalIntegrationApiKeyInput) modalIntegrationApiKeyInput.value = ''; if(modalInteg
+rationApiUrlInput) modalIntegrationApiUrlInput.value = ''; if(modalIntegrationEn
+abledToggle) modalIntegrationEnabledToggle.checked = true; } integrationConfigMo
+dal.classList.remove('hidden'); integrationConfigModal.classList.add('flex', 'mo
+dal-active'); document.body.classList.add('modal-active'); }
+    function hideIntegrationConfigModal() { if (!integrationConfigModal) return;
+ integrationConfigModal.classList.add('hidden'); integrationConfigModal.classLis
+t.remove('flex', 'modal-active'); document.body.classList.remove('modal-active')
+; }
+    function handleIntegrationFormSubmit(event) { event.preventDefault(); if(!mo
+dalIntegrationIdInput || !modalIntegrationNameInput || !modalIntegrationApiKeyIn
+put || !modalIntegrationApiUrlInput || !modalIntegrationEnabledToggle) return; c
+onst integrationId = modalIntegrationIdInput.value; const name = modalIntegratio
+nNameInput.value.trim(); const apiKey = modalIntegrationApiKeyInput.value; const
+ apiUrl = modalIntegrationApiUrlInput.value; const enabled = modalIntegrationEna
+bledToggle.checked; if (!name) { alert("Integration Name is required."); modalIn
+tegrationNameInput.focus(); return; } let message = ""; if (integrationId) { con
+st integration = mockIntegrations.find(int => int.id === integrationId); if (int
+egration) { integration.name = name; integration.apiKey = apiKey; integration.ap
+iUrl = apiUrl; integration.enabled = enabled; integration.status = (enabled && a
+piKey && apiUrl) ? "Connected" : (enabled ? "Configuration Incomplete" : "Disabl
+ed"); integration.lastSync = new Date().toISOString(); message = `Configuration
+for ${integration.name} updated!`; } } else { const newId = "INT" + Date.now();
+const newIntegration = { id: newId, name: name, apiKey: apiKey, apiUrl: apiUrl,
+enabled: enabled, status: (enabled && apiKey && apiUrl) ? "Connected" : (enabled
+ ? "Configuration Incomplete" : "Disabled"), lastSync: new Date().toISOString()
+}; mockIntegrations.push(newIntegration); message = `${newIntegration.name} adde
+d successfully!`; } renderIntegrations(); hideIntegrationConfigModal(); showToas
+t(message); console.log("Integrations Data:", mockIntegrations); }
+    function showToast(message) { if (!toastNotification) return; toastNotificat
+ion.textContent = message; toastNotification.classList.remove('hidden'); setTime
+out(() => toastNotification.classList.add('hidden'), 3000); }
+    function initializeAdminConfig() { if (document.getElementById('admin-config
+')?.classList.contains('active') || !document.getElementById('admin-config')) {
+renderUsers(); loadSystemSettings(); renderIntegrations(); } }
+    if (saveSystemSettingsBtn) saveSystemSettingsBtn.addEventListener('click', s
+aveSystemSettings);
+    if (addNewUserBtn) addNewUserBtn.addEventListener('click', () => { alert("Mo
+ck: 'Add New User' form/modal would appear here."); });
+    if (addNewIntegrationBtn) addNewIntegrationBtn.addEventListener('click', ()
+=> showIntegrationConfigModal());
+    if(closeIntegrationModalBtn) closeIntegrationModalBtn.addEventListener('clic
+k', hideIntegrationConfigModal);
+    if(cancelIntegrationConfigBtn) cancelIntegrationConfigBtn.addEventListener('
+click', hideIntegrationConfigModal);
+    if(integrationModalForm) integrationModalForm.addEventListener('submit', han
+dleIntegrationFormSubmit);
+    window.addEventListener('keydown', (event) => { if (event.key === 'Escape' &
+& integrationConfigModal && !integrationConfigModal.classList.contains('hidden')
+) { hideIntegrationConfigModal(); } });
+    if (integrationConfigModal) { integrationConfigModal.addEventListener('click
+', (event) => { if (event.target === integrationConfigModal) { hideIntegrationCo
+nfigModal(); } }); }
+
+    // --- Aircraft Tracker Functionality ---
+    const aircraftListContainer = document.getElementById('aircraft-list-contain
+er');
+    const aircraftSearchInput = document.getElementById('aircraft-search');
+    const filterAircraftStatusSelect = document.getElementById('filter-aircraft-
+status');
+    const filterAircraftModelSelect = document.getElementById('filter-aircraft-m
+odel');
+    const noAircraftMessage = document.getElementById('no-aircraft-message');
+    const aircraftDetailModal = document.getElementById('aircraft-detail-modal')
+;
+    const modalAircraftTail = document.getElementById('modal-aircraft-tail');
+    const modalAircraftDetailsContent = document.getElementById('modal-aircraft-
+details-content');
+    const closeAircraftModalBtn = document.getElementById('close-aircraft-modal-
+btn');
+    const mockAircraftData = [ { tailNumber: "N123SW", model: "Boeing 737-800",
+status: "In Flight", currentLocation: "En Route DAL-PHX", altitude: "35,000 ft",
+ speed: "450 kts", heading: "270°", nextFlight: { flightNo: "SWA456", origin: "P
+HX", destination: "LAS", etd: "2024-05-30T14:00:00Z" }, lastMaintenance: "2024-0
+5-15", hoursSinceMaintenance: 120, cycles: 50, eta: "10:45 AM PST" }, { tailNumb
+er: "N456WN", model: "Boeing 737-700", status: "Parked", currentLocation: "DAL G
+ate A1", nextFlight: { flightNo: "SWA789", etd: "2024-05-30T12:30:00Z" }, lastMa
+intenance: "2024-05-20" }, { tailNumber: "N789SA", model: "Boeing 737-MAX8", sta
+tus: "Maintenance", currentLocation: "DAL Hangar 2", nextFlight: null, lastMaint
+enance: "2024-05-29" }, { tailNumber: "N234SW", model: "Boeing 737-800", status:
+ "Taxiing", currentLocation: "MDW Taxiway C", nextFlight: { flightNo: "SWA101",
+etd: "2024-05-30T11:00:00Z" }, lastMaintenance: "2024-05-10" }, ];
+    function getAircraftStatusClass(status) { if (!status) return 'aircraft-stat
+us-unknown'; return `aircraft-status-${status.toLowerCase().replace(/\s+/g, '-')
+}`; }
+    function populateAircraftModelFilter() { if (!filterAircraftModelSelect) ret
+urn; const models = [...new Set(mockAircraftData.map(ac => ac.model))]; filterAi
+rcraftModelSelect.innerHTML = '<option value="all">All Models</option>'; models.
+sort().forEach(model => { const option = document.createElement('option'); optio
+n.value = model; option.textContent = model; filterAircraftModelSelect.appendChi
+ld(option); }); }
+    function renderAircraftList() { if (!aircraftListContainer || !aircraftSearc
+hInput || !filterAircraftStatusSelect || !filterAircraftModelSelect || !noAircra
+ftMessage) { if(document.getElementById('aircraft-tracker')?.classList.contains(
+'active')) { console.error("Aircraft Tracker UI elements not found."); } return;
+ }
+        const searchTerm = aircraftSearchInput.value.toLowerCase();
+        const selectedStatus = filterAircraftStatusSelect.value;
+        const selectedModel = filterAircraftModelSelect.value;
+
+        let filteredAircraft = mockAircraftData.filter(ac =>
+            (ac.tailNumber.toLowerCase().includes(searchTerm)) &&
+            (selectedStatus === 'all' || ac.status === selectedStatus) &&
+            (selectedModel === 'all' || ac.model === selectedModel)
+        );
+
+        let htmlString = '';
+        if (filteredAircraft.length === 0) {
+            noAircraftMessage.classList.remove('hidden');
+            aircraftListContainer.innerHTML = ''; // Clear the container
+        } else {
+            noAircraftMessage.classList.add('hidden');
+            filteredAircraft.forEach(ac => {
+                const statusClass = getAircraftStatusClass(ac.status);
+                let flightInfo = ac.status === "In Flight" ?
+                    `${ac.currentLocation} (${ac.altitude}, ${ac.speed}, ${ac.heading})` : ac.currentLocation;
+                htmlString += `
+                    <div class="bg-white rounded-lg shadow-md p-4 border-l-4 ${statusClass} hover:shadow-lg transition-shadow">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-md font-semibold text-gray-800">${ac.tailNumber}</h3>
+                            <span class="text-xs px-2 py-1 rounded-full bg-gray-200 text-gray-700">${ac.model}</span>
+                        </div>
+                        <p class="text-sm text-gray-600">Status: <span class="font-medium">${ac.status}</span></p>
+                        <p class="text-sm text-gray-500 truncate" title="Location: ${flightInfo}">Location: ${flightInfo}</p>
+                        <p class="text-sm text-gray-500">Next Flight: ${ac.nextFlight ? `${ac.nextFlight.flightNo} (${ac.nextFlight.origin}-${ac.nextFlight.destination})` : 'N/A'}</p>
+                        <div class="mt-3 pt-3 border-t border-gray-200 flex justify-end">
+                            <button data-tail="${ac.tailNumber}" class="view-aircraft-details-btn text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md">View Details</button>
+                        </div>
+                    </div>`;
+            });
+            aircraftListContainer.innerHTML = htmlString;
+        }
+        document.querySelectorAll('.view-aircraft-details-btn').forEach(button => button.addEventListener('click', () => showAircraftDetailModal(button.dataset.tail)));
+    }
+    function showAircraftDetailModal(tailNumber) { const aircraft = mockAircraft
+Data.find(ac => ac.tailNumber === tailNumber); if (!aircraft || !aircraftDetailM
+odal || !modalAircraftTail || !modalAircraftDetailsContent) return; modalAircraf
+tTail.textContent = `Details for ${aircraft.tailNumber} (${aircraft.model})`; le
+t nextFlightHTML = 'Not scheduled.'; if (aircraft.nextFlight) { const etd = new
+Date(aircraft.nextFlight.etd).toLocaleString([], { dateStyle: 'short', timeStyle
+: 'short'}); nextFlightHTML = `<p><span class="font-semibold">Flight No:</span>
+${aircraft.nextFlight.flightNo}</p><p><span class="font-semibold">Route:</span>
+${aircraft.nextFlight.origin} to ${aircraft.nextFlight.destination}</p><p><span
+class="font-semibold">ETD:</span> ${etd}</p>`; } let locationDetails = aircraft.
+currentLocation; if (aircraft.status === "In Flight") { locationDetails = `${air
+craft.currentLocation} | Alt: ${aircraft.altitude} | Spd: ${aircraft.speed} | Hd
+g: ${aircraft.heading} ${aircraft.eta ? '| ETA: ' + aircraft.eta : ''}`; } modal
+AircraftDetailsContent.innerHTML = `<p><span class="font-semibold">Status:</span
+> ${aircraft.status}</p><p><span class="font-semibold">Current Location:</span>
+${locationDetails}</p><div class="mt-2 pt-2 border-t"><h4 class="font-semibold m
+b-1">Next Flight:</h4>${nextFlightHTML}</div><div class="mt-2 pt-2 border-t"><h4
+ class="font-semibold mb-1">Maintenance Info:</h4><p><span class="font-semibold"
+>Last Check:</span> ${new Date(aircraft.lastMaintenance).toLocaleDateString()}</
+p><p><span class="font-semibold">Hours Since Check:</span> ${aircraft.hoursSince
+Maintenance || 'N/A'} hrs</p><p><span class="font-semibold">Cycles Since Check:<
+/span> ${aircraft.cycles || 'N/A'}</p></div>`; aircraftDetailModal.classList.rem
+ove('hidden'); aircraftDetailModal.classList.add('flex', 'modal-active'); docume
+nt.body.classList.add('modal-active'); }
+    function hideAircraftDetailModal() { if (!aircraftDetailModal) return; aircr
+aftDetailModal.classList.add('hidden'); aircraftDetailModal.classList.remove('fl
+ex', 'modal-active'); document.body.classList.remove('modal-active'); }
+    function initializeAircraftTracker() { if (document.getElementById('aircraft
+-tracker')?.classList.contains('active') || !document.getElementById('aircraft-t
+racker')) { populateAircraftModelFilter(); renderAircraftList(); } }
+    if (aircraftSearchInput) aircraftSearchInput.addEventListener('input', debounce(renderAircraftList, 400));
+    if (filterAircraftStatusSelect) filterAircraftStatusSelect.addEventListener(
+'change', renderAircraftList);
+    if (filterAircraftModelSelect) filterAircraftModelSelect.addEventListener('c
+hange', renderAircraftList);
+    if (closeAircraftModalBtn) closeAircraftModalBtn.addEventListener('click', h
+ideAircraftDetailModal);
+    window.addEventListener('keydown', (event) => { if (event.key === 'Escape' &
+& aircraftDetailModal && !aircraftDetailModal.classList.contains('hidden')) { hi
+deAircraftDetailModal(); } });
+    if (aircraftDetailModal) { aircraftDetailModal.addEventListener('click', (ev
+ent) => { if (event.target === aircraftDetailModal) { hideAircraftDetailModal();
+ } }); }
+
+    // --- Simulations Tab Functionality ---
+    const simulationForm = document.getElementById('simulation-form');
+    const runSimulationBtn = document.getElementById('run-simulation-btn');
+    const simulationResultsContainer = document.getElementById('simulation-resul
+ts-container');
+    const simulationOutput = document.getElementById('simulation-output');
+    function displaySimulationResults(results) { if (!simulationOutput || !simul
+ationResultsContainer) return; simulationOutput.innerHTML = `<p><span class="fon
+t-semibold">Scenario:</span> ${results.name}</p><p><span class="font-semibold">T
+ype:</span> ${results.type}</p><p><span class="font-semibold">Affected Area:</sp
+an> ${results.area}</p><p><span class="font-semibold">Severity:</span> ${results
+.severity}</p><div class="mt-2 pt-2 border-t"><p class="font-semibold">Projected
+ Impact:</p><ul class="list-disc list-inside ml-4"><li>Flights Delayed: ${result
+s.impact.delayed}</li><li>Flights Cancelled: ${results.impact.cancelled}</li><li
+>Passenger Disruption: ${results.impact.paxDisruption}</li><li>Estimated Cost: $
+{results.impact.cost}</li></ul></div><div class="mt-2 pt-2 border-t"><p class="f
+ont-semibold">Recommended Actions:</p><ul class="list-disc list-inside ml-4">${r
+esults.recommendations.map(rec => `<li>${rec}</li>`).join('')}</ul></div>`; simu
+lationResultsContainer.classList.remove('hidden'); }
+    function handleRunSimulation(event) { event.preventDefault(); if (!simulatio
+nForm) return; const scenarioName = document.getElementById('sim-scenario-name')
+.value || "Unnamed Scenario"; const scenarioType = document.getElementById('sim-
+scenario-type').value; const affectedArea = document.getElementById('sim-affecte
+d-area').value || "N/A"; const severity = document.getElementById('sim-severity'
+).value; let delayed = 0, cancelled = 0, paxDisruption = "Low", cost = "$0", rec
+ommendations = ["Monitor."]; switch (scenarioType) { case "Weather": if (severit
+y === "High" || severity === "Critical") { delayed = Math.floor(Math.random()*50
+)+20; cancelled = Math.floor(Math.random()*10)+5; paxDisruption = "High"; cost =
+ `$${(Math.floor(Math.random()*20)+10)*10000}`; recommendations = ["Implement GD
+P for "+affectedArea+".", "Proactive cancellations.", "Re-accommodation plans."]
+; } else { delayed = Math.floor(Math.random()*20)+5; cancelled = Math.floor(Math
+.random()*3); paxDisruption = "Medium"; cost = `$${(Math.floor(Math.random()*5)+
+1)*10000}`; recommendations = ["Advise crews.", "Monitor conditions at "+affecte
+dArea+"."]; } break; case "Maintenance": delayed = Math.floor(Math.random()*10)+
+(severity==="High"||severity==="Critical"?5:2); cancelled = Math.floor(Math.rand
+om()*2)+(severity==="High"||severity==="Critical"?1:0); paxDisruption = (severit
+y==="High"||severity==="Critical"?"Medium":"Low"); cost = `$${(Math.floor(Math.r
+andom()*10)+2)*1000}`; recommendations = ["Swap aircraft.", "Expedite MRO.", "No
+tify pax."]; break; case "Crew": delayed = Math.floor(Math.random()*15)+(severit
+y==="High"||severity==="Critical"?10:3); cancelled = Math.floor(Math.random()*5)
++(severity==="High"||severity==="Critical"?2:0); paxDisruption = (severity==="Hi
+gh"||severity==="Critical"?"High":"Medium"); cost = `$${(Math.floor(Math.random(
+)*15)+5)*10000}`; recommendations = ["Activate standby.", "Re-assign crew.", "Co
+nsolidate flights."]; break; default: delayed = Math.floor(Math.random()*5)+1; }
+ const mockResults = { name: scenarioName, type: scenarioType, area: affectedAre
+a, severity: severity, impact: { delayed, cancelled, paxDisruption, cost }, reco
+mmendations }; displaySimulationResults(mockResults); showToast("Simulation comp
+lete!"); }
+    function initializeSimulations() { if (simulationForm) { simulationForm.addE
+ventListener('submit', handleRunSimulation); } }
+
+    // --- Ops Brief Generator Functionality ---
+    const opsBriefForm = document.getElementById('ops-brief-form');
+    const briefDateInput = document.getElementById('brief-date');
+    const opsBriefOutput = document.getElementById('ops-brief-output');
+    const opsBriefPreviewContainer = document.getElementById('ops-brief-preview-
+container');
+    const previewBriefBtn = document.getElementById('preview-brief-btn');
+    function generateOpsBriefContent(options) { let brief = `OPERATIONS BRIEFING
+ - ${new Date(options.date || Date.now()).toLocaleDateString([], { weekday: 'lon
+g', year: 'numeric', month: 'long', day: 'numeric' })}
+========================
+====================================
+
+`; if (options.sections.includes('networ
+k-performance')) { brief += "I. NETWORK PERFORMANCE (OVERALL)
+   - On-Time Perf
+ormance (Yesterday): 87%
+   - System Completion Factor: 99.2%
+   - Key Delays:
+ ATC volume EWR, Maintenance backlog MDW.
+
+"; } if (options.sections.includes(
+'alerts-summary')) { brief += "II. CURRENT CRITICAL ALERTS (Top 3 High Severity)
+
+"; const highAlerts = mockAlerts.filter(a => a.severity === "High").slice(0, 3
+); if (highAlerts.length > 0) { highAlerts.forEach(alert => { brief += `   - [${
+alert.category}] ${alert.title}: ${alert.description.substring(0, 50)}...
+`; })
+; } else { brief += "   - No critical alerts at this time.
+"; } brief += "
+";
+} if (options.sections.includes('weather-outlook')) { brief += "III. WEATHER OUT
+LOOK
+   - Significant Weather: Thunderstorms expected across the Southeast corr
+idor (ATL, MCO, FLL) this afternoon.
+   - Low visibility possible in DEN mornin
+g hours.
+
+"; } if (options.sections.includes('station-updates')) { brief += "I
+V. KEY STATION UPDATES
+"; const stationDAL = mockStationData["DAL"]; const stat
+ionMDW = mockStationData["MDW"]; if (stationDAL) brief += `   - DAL: ${stationDA
+L.status}, OTP: ${stationDAL.otpToday}.
+`; if (stationMDW) brief += `   - MDW:
+${stationMDW.status}, OTP: ${stationMDW.otpToday}.
+
+`; } if (options.sections.
+includes('crew-status')) { brief += "V. CREW AVAILABILITY
+"; const pilotsStandb
+y = mockCrewMembers.filter(c => c.role === "Pilot" && c.status === "Standby").le
+ngth; const faStandby = mockCrewMembers.filter(c => c.role === "Cabin Crew" && c
+.status === "Standby").length; brief += `   - Pilots on Standby: ${pilotsStandby
+}
+   - Flight Attendants on Standby: ${faStandby}
+
+`; } if (options.sections.
+includes('maintenance-notes')) { brief += "VI. KEY MAINTENANCE NOTES
+"; const m
+aintenanceAircraft = mockAircraftData.filter(ac => ac.status === "Maintenance").
+slice(0,2); if(maintenanceAircraft.length > 0) { maintenanceAircraft.forEach(ac
+=> { brief += `   - ${ac.tailNumber} (${ac.model}): ${ac.currentLocation}.
+`; }
+); } else { brief += `   - No aircraft currently AOG for extended periods.
+`; }
+ brief += "
+"; } if (options.customNotes && options.customNotes.trim() !== "")
+{ brief += "VII. ADDITIONAL NOTES
+   - " + options.customNotes.replace(/
+/g, '
+
+     ') + "
+
+"; } brief += "================================================
+============
+End of Brief.
+"; return brief; }
+    function handleGenerateBrief(event, download = false) { event.preventDefault
+(); if (!opsBriefForm || !briefDateInput || !opsBriefOutput || !opsBriefPreviewC
+ontainer) return; const selectedDate = briefDateInput.value; if (!selectedDate)
+{ alert("Please select a briefing date."); briefDateInput.focus(); return; } con
+st selectedSections = []; opsBriefForm.querySelectorAll('input[name="sections"]:
+checked').forEach(checkbox => selectedSections.push(checkbox.value)); const cust
+omNotes = document.getElementById('brief-custom-notes').value; const briefOption
+s = { date: selectedDate, sections: selectedSections, customNotes: customNotes }
+; const briefContent = generateOpsBriefContent(briefOptions); opsBriefOutput.tex
+tContent = briefContent; opsBriefPreviewContainer.classList.remove('hidden'); if
+ (download) { const blob = new Blob([briefContent], { type: 'text/plain;charset=
+utf-8' }); const link = document.createElement('a'); link.href = URL.createObjec
+tURL(blob); link.download = `OpsBrief_${selectedDate.replace(/-/g, '')}.txt`; do
+cument.body.appendChild(link); link.click(); document.body.removeChild(link); UR
+L.revokeObjectURL(link.href); showToast("Ops Brief downloaded!"); } else { showT
+oast("Ops Brief preview generated!"); } }
+    function initializeOpsBriefGenerator() { if (opsBriefForm) { if (briefDateIn
+put && !briefDateInput.value) { briefDateInput.value = new Date().toISOString().
+split('T')[0]; } opsBriefForm.addEventListener('submit', (e) => handleGenerateBr
+ief(e, true)); } if (previewBriefBtn) { previewBriefBtn.addEventListener('click'
+, (e) => handleGenerateBrief(e, false)); } }
+
+    // --- Recommendations Tab Functionality ---
+    const recommendationsListContainer = document.getElementById('recommendation
+s-list-container');
+    const filterRecCategorySelect = document.getElementById('filter-rec-category
+');
+    const filterRecConfidenceSelect = document.getElementById('filter-rec-confid
+ence');
+    const filterRecStatusSelect = document.getElementById('filter-rec-status');
+    const noRecommendationsMessage = document.getElementById('no-recommendations
+-message');
+    const mockRecommendations = [ { id: "REC001", title: "Optimize Crew Pairing
+for DAL-PHX Route", category: "Crew Scheduling", description: "Re-evaluate curre
+nt crew pairings for DAL-PHX to reduce layover times by an average of 45 minutes
+.", impact: "Potential cost saving: $3k/week. Improved crew utilization.", confi
+dence: "High", status: "New", timestamp: "2024-05-29T10:00:00Z" }, { id: "REC002
+", title: "Adjust Aircraft N789SA Maintenance Schedule", category: "Aircraft Ass
+ignment", description: "Shift scheduled C-check for N789SA by 2 days to align wi
+th lower operational tempo, avoiding peak travel disruption.", impact: "Reduces
+risk of cancellation for 3 flights.", confidence: "Medium", status: "New", times
+tamp: "2024-05-29T11:30:00Z" }, { id: "REC003", title: "Reduce Taxi Fuel Burn at
+ MDW", category: "Fuel Efficiency", description: "Implement single-engine taxi p
+rocedures for departures at MDW during non-peak hours.", impact: "Estimated fuel
+ savings: 50kg/flight. Annual savings: ~$120k.", confidence: "High", status: "Re
+viewed", timestamp: "2024-05-28T14:00:00Z" }, ];
+    function getConfidenceColor(confidence) { switch (confidence.toLowerCase())
+{ case 'high': return 'text-green-600'; case 'medium': return 'text-yellow-600';
+ case 'low': return 'text-red-600'; default: return 'text-gray-600'; } }
+    function getStatusColor(status) { switch (status) { case 'New': return 'bg-b
+lue-100 text-blue-700'; case 'Reviewed': return 'bg-yellow-100 text-yellow-700';
+ case 'Implemented': return 'bg-green-100 text-green-700'; case 'Dismissed': ret
+urn 'bg-gray-100 text-gray-700'; default: return 'bg-gray-100 text-gray-700'; }
+}
+    function renderRecommendations() { if (!recommendationsListContainer || !fil
+terRecCategorySelect || !filterRecConfidenceSelect || !filterRecStatusSelect ||
+!noRecommendationsMessage) { if(document.getElementById('recommendations')?.clas
+sList.contains('active')) { console.error("Recommendations UI elements not found
+."); } return; }
+        const selectedCategory = filterRecCategorySelect.value;
+        const selectedConfidence = filterRecConfidenceSelect.value;
+        const selectedStatus = filterRecStatusSelect.value;
+
+        let filteredRecommendations = mockRecommendations.filter(rec =>
+            (selectedCategory === 'all' || rec.category === selectedCategory) &&
+            (selectedConfidence === 'all' || rec.confidence === selectedConfidence) &&
+            (selectedStatus === 'all' || rec.status === selectedStatus)
+        );
+        filteredRecommendations.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        let htmlString = '';
+        if (filteredRecommendations.length === 0) {
+            noRecommendationsMessage.classList.remove('hidden');
+            recommendationsListContainer.innerHTML = ''; // Clear if empty
+        } else {
+            noRecommendationsMessage.classList.add('hidden');
+            filteredRecommendations.forEach(rec => {
+                const confidenceColor = getConfidenceColor(rec.confidence);
+                const statusBadgeClasses = getStatusColor(rec.status);
+                const recTime = new Date(rec.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+                htmlString += `
+                    <div class="bg-white rounded-lg shadow-md p-4 recommendation-card confidence-${rec.confidence.toLowerCase()}">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-md font-semibold text-gray-800">${rec.title}</h3>
+                            <span class="text-xs px-2 py-1 rounded-full ${statusBadgeClasses}">${rec.status}</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-1">${rec.category} | Confidence: <span class="${confidenceColor} font-medium">${rec.confidence}</span></p>
+                        <p class="text-sm text-gray-600 mb-2">${rec.description}</p>
+                        <p class="text-sm font-medium text-blue-600 mb-3">Impact: ${rec.impact}</p>
+                        <div class="text-xs text-gray-400 flex justify-between items-center">
+                            <span>Generated: ${recTime}</span>
+                            <div class="space-x-2">
+                                <button class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md">View Details</button>
+                                <button class="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md">Implement</button>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+            recommendationsListContainer.innerHTML = htmlString;
+        }
+        // Event listeners for buttons like "View Details" or "Implement" should be (re-)added here
+        // if they are not handled by event delegation or outside this function.
+        // Example: document.querySelectorAll('.view-recommendation-details-btn').forEach(btn => btn.addEventListener(...));
+    }
+    function initializeRecommendations() { if (document.getElementById('recommen
+dations')?.classList.contains('active') || !document.getElementById('recommendat
+ions')) { if (filterRecCategorySelect && filterRecConfidenceSelect && filterRecS
+tatusSelect) { filterRecCategorySelect.addEventListener('change', renderRecommen
+dations); filterRecConfidenceSelect.addEventListener('change', renderRecommendat
+ions); filterRecStatusSelect.addEventListener('change', renderRecommendations);
+renderRecommendations(); } else { console.error("Recommendation filter elements
+not found for initialization."); } } }
+
+    // --- Schedule Manager Functionality ---
+    const scheduleDateInput = document.getElementById('schedule-date');
+    const filterScheduleStationSelect = document.getElementById('filter-schedule
+-station');
+    const filterScheduleStatusSelect = document.getElementById('filter-schedule-
+status');
+    const refreshScheduleBtn = document.getElementById('refresh-schedule-btn');
+    const flightScheduleTbody = document.getElementById('flight-schedule-tbody')
+;
+    const noFlightsMessage = document.getElementById('no-flights-message');
+    const editFlightModal = document.getElementById('edit-flight-modal');
+    const modalFlightTitle = document.getElementById('modal-flight-title');
+    const editFlightForm = document.getElementById('edit-flight-form');
+    const modalFlightIdInput = document.getElementById('modal-flight-id');
+    const modalFlightNoInput = document.getElementById('modal-flight-no');
+    const modalFlightRouteInput = document.getElementById('modal-flight-route');
+    const modalFlightEtdInput = document.getElementById('modal-flight-etd');
+    const modalFlightEtaInput = document.getElementById('modal-flight-eta');
+    const modalFlightGateOriginInput = document.getElementById('modal-flight-gat
+e-origin');
+    const modalFlightGateDestInput = document.getElementById('modal-flight-gate-
+dest');
+    const modalFlightStatusSelect = document.getElementById('modal-flight-status
+');
+    const modalFlightAircraftInput = document.getElementById('modal-flight-aircr
+aft');
+    const modalFlightRemarksTextarea = document.getElementById('modal-flight-rem
+arks');
+    const closeEditFlightModalBtn = document.getElementById('close-edit-flight-m
+odal-btn');
+    const cancelEditFlightBtn = document.getElementById('cancel-edit-flight-btn'
+);
+
+    let mockFlightScheduleData = [
+        { id: "SWA123-20240530", flightNo: "SWA123", origin: "DAL", destination:
+ "PHX", std: "2024-05-30T08:00:00Z", sta: "2024-05-30T09:30:00Z", etd: "2024-05-
+30T08:05:00Z", eta: "2024-05-30T09:38:00Z", atd: null, ata: null, aircraft: "N12
+3SW", gateOrigin: "A1", gateDestination: "C5", status: "Delayed", crew: { pilot:
+ "CRW001", fa: ["CRW003"] }, remarks: "ATC Hold." },
+        { id: "SWA456-20240530", flightNo: "SWA456", origin: "PHX", destination:
+ "LAS", std: "2024-05-30T10:30:00Z", sta: "2024-05-30T11:30:00Z", etd: "2024-05-
+30T10:30:00Z", eta: "2024-05-30T11:30:00Z", atd: null, ata: null, aircraft: "N45
+6WN", gateOrigin: "C5", gateDestination: "B10", status: "On Time", crew: { pilot
+: "CRW002", fa: ["CRW004"] }, remarks: "" },
+        { id: "SWA789-20240530", flightNo: "SWA789", origin: "DAL", destination:
+ "HOU", std: "2024-05-30T09:15:00Z", sta: "2024-05-30T10:15:00Z", etd: null, eta
+: null, atd: null, ata: null, aircraft: "N789SA", gateOrigin: "A2", gateDestinat
+ion: "12", status: "Cancelled", crew: { pilot: "CRW005", fa: ["CRW006"] }, remar
+ks: "Crew availability." },
+        { id: "SWA101-20240530", flightNo: "SWA101", origin: "MDW", destination:
+ "ATL", std: "2024-05-30T11:00:00Z", sta: "2024-05-30T13:45:00Z", etd: "2024-05-
+30T11:00:00Z", eta: "2024-05-30T13:45:00Z", atd: "2024-05-30T11:02:00Z", ata: nu
+ll, aircraft: "N234SW", gateOrigin: "B5", gateDestination: "D2", status: "In Fli
+ght", crew: { pilot: "CRW007", fa: ["CRW008"] }, remarks: "" },
+        { id: "SWA202-20240530", flightNo: "SWA202", origin: "ATL", destination:
+ "MCO", std: "2024-05-30T14:30:00Z", sta: "2024-05-30T15:45:00Z", etd: "2024-05-
+30T14:30:00Z", eta: "2024-05-30T15:45:00Z", atd: null, ata: null, aircraft: "N56
+7WN", gateOrigin: "D2", gateDestination: "33", status: "Boarding", crew: { pilot
+: "CRW009", fa: ["CRW010"] }, remarks: "" },
+    ];
+
+    function formatFlightTime(isoString) { if (!isoString) return '-'; return ne
+w Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', h
+our12: true }); }
+    function formatDateTimeLocal(isoString) { if (!isoString) return ''; const d
+ate = new Date(isoString); const localDate = new Date(date.getTime() - (date.get
+TimezoneOffset() * 60000)); return localDate.toISOString().slice(0, 16); }
+    function getFlightStatusClass(status) { if (!status) return ''; return `flig
+ht-status-${status.toLowerCase().replace(/\s+/g, '-')}`; }
+    function populateScheduleFilters() { if (!filterScheduleStationSelect) retur
+n; const stations = new Set(); mockFlightScheduleData.forEach(flight => { statio
+ns.add(flight.origin); stations.add(flight.destination); }); filterScheduleStati
+onSelect.innerHTML = '<option value="all">All Stations</option>'; [...stations].
+sort().forEach(station => { const option = document.createElement('option'); opt
+ion.value = station; option.textContent = station; filterScheduleStationSelect.a
+ppendChild(option); }); }
+    function renderFlightSchedule() { if (!flightScheduleTbody || !scheduleDateI
+nput || !filterScheduleStationSelect || !filterScheduleStatusSelect || !noFlight
+sMessage) { if(document.getElementById('schedule-manager')?.classList.contains('
+active')) { console.error("Schedule Manager UI elements not found."); } return;
+} const selectedDate = scheduleDateInput.value; const selectedStation = filterSc
+heduleStationSelect.value; const selectedStatus = filterScheduleStatusSelect.val
+ue; flightScheduleTbody.innerHTML = ''; let filteredFlights = mockFlightSchedule
+Data.filter(flight => { const flightDate = flight.std.substring(0, 10); const da
+teMatch = !selectedDate || flightDate === selectedDate; const stationMatch = sel
+ectedStation === 'all' || flight.origin === selectedStation || flight.destinatio
+n === selectedStation; const statusMatch = selectedStatus === 'all' || flight.st
+atus === selectedStatus; return dateMatch && stationMatch && statusMatch; });
+        filteredFlights.sort((a,b) => new Date(a.std) - new Date(b.std));
+
+        let htmlString = '';
+        if (filteredFlights.length === 0) {
+            noFlightsMessage.classList.remove('hidden');
+            flightScheduleTbody.innerHTML = ''; // Clear if empty
+        } else {
+            noFlightsMessage.classList.add('hidden');
+            filteredFlights.forEach(flight => {
+                const statusClass = getFlightStatusClass(flight.status);
+                htmlString += `
+                    <tr class="text-sm text-gray-700">
+                        <td class="px-4 py-3 whitespace-nowrap font-medium">${flight.flightNo}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${flight.origin} &rarr; ${flight.destination}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${formatFlightTime(flight.std)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${formatFlightTime(flight.etd)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${formatFlightTime(flight.sta)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${formatFlightTime(flight.eta)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${flight.aircraft}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${flight.gateOrigin || '-'}/${flight.gateDestination || '-'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap"><span class="font-semibold ${statusClass}">${flight.status}</span></td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <button data-flight-id="${flight.id}" class="edit-flight-btn text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded-md">Edit</button>
+                        </td>
+                    </tr>`;
+            });
+            flightScheduleTbody.innerHTML = htmlString;
+        }
+        document.querySelectorAll('.edit-flight-btn').forEach(button => button.addEventListener('click', () => showEditFlightModal(button.dataset.flightId)));
+    }
+    function showEditFlightModal(flightId) { const flight = mockFlightScheduleDa
+ta.find(f => f.id === flightId); if (!flight || !editFlightModal || !editFlightF
+orm) return; if(modalFlightTitle) modalFlightTitle.textContent = `Edit Flight: $
+{flight.flightNo} (${flight.origin}-${flight.destination})`; if(modalFlightIdInp
+ut) modalFlightIdInput.value = flight.id; if(modalFlightNoInput) modalFlightNoIn
+put.value = flight.flightNo; if(modalFlightRouteInput) modalFlightRouteInput.val
+ue = `${flight.origin} - ${flight.destination}`; if(modalFlightEtdInput) modalFl
+ightEtdInput.value = formatDateTimeLocal(flight.etd || flight.std); if(modalFlig
+htEtaInput) modalFlightEtaInput.value = formatDateTimeLocal(flight.eta || flight
+.sta); if(modalFlightGateOriginInput) modalFlightGateOriginInput.value = flight.
+gateOrigin || ''; if(modalFlightGateDestInput) modalFlightGateDestInput.value =
+flight.gateDestination || ''; if(modalFlightStatusSelect) modalFlightStatusSelec
+t.value = flight.status; if(modalFlightAircraftInput) modalFlightAircraftInput.v
+alue = flight.aircraft || ''; if(modalFlightRemarksTextarea) modalFlightRemarksT
+extarea.value = flight.remarks || ''; editFlightModal.classList.remove('hidden')
+; editFlightModal.classList.add('flex', 'modal-active'); document.body.classList
+.add('modal-active'); }
+    function hideEditFlightModal() { if (!editFlightModal) return; editFlightMod
+al.classList.add('hidden'); editFlightModal.classList.remove('flex', 'modal-acti
+ve'); document.body.classList.remove('modal-active'); }
+    function handleSaveFlightChanges(event) { event.preventDefault(); if (!modal
+FlightIdInput || !editFlightForm) return; const flightId = modalFlightIdInput.va
+lue; const flight = mockFlightScheduleData.find(f => f.id === flightId); if (!fl
+ight) { alert("Error: Flight not found."); hideEditFlightModal(); return; } if(m
+odalFlightEtdInput) flight.etd = modalFlightEtdInput.value ? new Date(modalFligh
+tEtdInput.value).toISOString() : flight.std; if(modalFlightEtaInput) flight.eta
+= modalFlightEtaInput.value ? new Date(modalFlightEtaInput.value).toISOString()
+: flight.sta; if(modalFlightGateOriginInput) flight.gateOrigin = modalFlightGate
+OriginInput.value; if(modalFlightGateDestInput) flight.gateDestination = modalFl
+ightGateDestInput.value; if(modalFlightStatusSelect) flight.status = modalFlight
+StatusSelect.value; if(modalFlightAircraftInput) flight.aircraft = modalFlightAi
+rcraftInput.value; if(modalFlightRemarksTextarea) flight.remarks = modalFlightRe
+marksTextarea.value; if (flight.status === "In Flight" && !flight.atd) flight.at
+d = flight.etd; if (flight.status === "Arrived" && !flight.ata) flight.ata = fli
+ght.eta; renderFlightSchedule(); hideEditFlightModal(); showToast(`Flight ${flig
+ht.flightNo} updated successfully!`); console.log("Updated Flight Data:", flight
+); }
+    function initializeScheduleManager() { if (document.getElementById('schedule
+-manager')?.classList.contains('active') || !document.getElementById('schedule-m
+anager')) { if (scheduleDateInput && !scheduleDateInput.value) { scheduleDateInp
+ut.value = new Date().toISOString().split('T')[0]; } populateScheduleFilters();
+renderFlightSchedule(); if (scheduleDateInput) scheduleDateInput.addEventListene
+r('change', renderFlightSchedule); if (filterScheduleStationSelect) filterSchedu
+leStationSelect.addEventListener('change', renderFlightSchedule); if (filterSche
+duleStatusSelect) filterScheduleStatusSelect.addEventListener('change', renderFl
+ightSchedule); if (refreshScheduleBtn) refreshScheduleBtn.addEventListener('clic
+k', renderFlightSchedule); if (editFlightForm) editFlightForm.addEventListener('
+submit', handleSaveFlightChanges); if (closeEditFlightModalBtn) closeEditFlightM
+odalBtn.addEventListener('click', hideEditFlightModal); if (cancelEditFlightBtn)
+ cancelEditFlightBtn.addEventListener('click', hideEditFlightModal); } }
+    window.addEventListener('keydown', (event) => { if (event.key === 'Escape' &
+& editFlightModal && !editFlightModal.classList.contains('hidden')) { hideEditFl
+ightModal(); } });
+    if (editFlightModal) { editFlightModal.addEventListener('click', (event) =>
+{ if (event.target === editFlightModal) { hideEditFlightModal(); } }); }
+
+
+    // Initial render for active tabs on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const activeTabLink = document.querySelector('#sidebar nav ul li a.activ
+e');
+        if (activeTabLink) {
+            const activeTabId = activeTabLink.getAttribute('data-tab');
+            if (activeTabId === 'alerts-center' && typeof renderAlerts === 'func
+tion') renderAlerts();
+            if (activeTabId === 'crew-hub' && typeof renderCrewMembers === 'func
+tion') renderCrewMembers();
+            if (activeTabId === 'station-ops' && typeof initializeStationOps ===
+ 'function') initializeStationOps();
+            if (activeTabId === 'admin-config' && typeof initializeAdminConfig =
+== 'function') initializeAdminConfig();
+            if (activeTabId === 'aircraft-tracker' && typeof initializeAircraftT
+racker === 'function') initializeAircraftTracker();
+            if (activeTabId === 'simulations' && typeof initializeSimulations ==
+= 'function') initializeSimulations();
+            if (activeTabId === 'ops-brief' && typeof initializeOpsBriefGenerato
+r === 'function') initializeOpsBriefGenerator();
+            if (activeTabId === 'recommendations' && typeof initializeRecommenda
+tions === 'function') initializeRecommendations();
+            if (activeTabId === 'schedule-manager' && typeof initializeScheduleM
+anager === 'function') initializeScheduleManager();
+        } else {
+             if (document.getElementById('home')?.classList.contains('active'))
+{}
+             // Fallbacks for other tabs if they might be default active
+             else if (document.getElementById('admin-config')?.classList.contain
+s('active') && typeof initializeAdminConfig === 'function') { initializeAdminCon
+fig(); }
+             else if (document.getElementById('station-ops')?.classList.contains
+('active') && typeof initializeStationOps === 'function') { initializeStationOps
+(); }
+             else if (document.getElementById('aircraft-tracker')?.classList.con
+tains('active') && typeof initializeAircraftTracker === 'function') { initialize
+AircraftTracker(); }
+             else if (document.getElementById('simulations')?.classList.contains
+('active') && typeof initializeSimulations === 'function') { initializeSimulatio
+ns(); }
+             else if (document.getElementById('ops-brief')?.classList.contains('
+active') && typeof initializeOpsBriefGenerator === 'function') { initializeOpsBr
+iefGenerator(); }
+             else if (document.getElementById('recommendations')?.classList.cont
+ains('active') && typeof initializeRecommendations === 'function') { initializeR
+ecommendations(); }
+             else if (document.getElementById('schedule-manager')?.classList.con
+tains('active') && typeof initializeScheduleManager === 'function') { initialize
+ScheduleManager(); }
+        }
+    });
+
+
+    // --- Chart Script (as before) ---
+    const ctx = document.getElementById('performanceChart');
+    if (ctx) { new Chart(ctx, { type: 'line', data: { labels: ['00:00', '04:00',
+ '08:00', '12:00', '16:00', '20:00'], datasets: [{ label: 'On-Time %', data: [85
+, 86, 87, 87, 86, 85], borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,
+0.1)', tension: 0.3, fill: true }] }, options: { responsive: true, maintainAspec
+tRatio: false, plugins: { legend: {display:false}}, scales: { y: {max:100, min:7
+0}, x: {grid:{display:false}}} } }); }
+  </script>
+</body>
+</html>
